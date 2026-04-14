@@ -435,6 +435,14 @@ void BlurEffect::updateBlurRegion(EffectWindow *w)
             m_windows.erase(it);
         }
     }
+
+    // BBDX: invalidate cache on update
+    if (auto it = m_windows.find(w); it != m_windows.end()) {
+        BlurEffectData &blurInfo = it->second;
+        for (auto &[_, renderInfo] : blurInfo.render) {
+            renderInfo.blurCacheValid = false;
+        }
+    }
 }
 
 void BlurEffect::slotWindowAdded(EffectWindow *w)
