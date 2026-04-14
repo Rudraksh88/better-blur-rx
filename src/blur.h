@@ -233,14 +233,14 @@ private:
 
     // BBDX Mixins
     BlurSettings m_settings;
-    BBDX::RefractionPass m_refractionPass{};
-    BBDX::RoundedCornersPass m_roundedCornersPass{};
-    BBDX::BlurCache m_blurCache{};
     bool m_forceContrastParams{false};
 
     std::unique_ptr<BBDX::WindowManager> m_windowManager{};
     friend void BBDX::WindowManager::triggerBlurRegionUpdate(EffectWindow *w) const;
     friend void BBDX::WindowManager::invalidateBlurCache(EffectWindow *w) const;
+    std::unique_ptr<BBDX::BlurCache> m_blurCache{};
+    std::unique_ptr<BBDX::RefractionPass> m_refractionPass{};
+    std::unique_ptr<BBDX::RoundedCornersPass> m_roundedCornersPass{};
 };
 
 inline bool BlurEffect::provides(Effect::Feature feature)

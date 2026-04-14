@@ -53,7 +53,7 @@ public:
                const KWin::EffectWindow *w,
                const KWin::WindowPaintData &data,
                KWin::GLVertexBuffer *vbo,
-               const BBDX::BlurCache &blurCache) const;
+               const BBDX::BlurCache *blurCache) const;
 };
 
 } // namespace BBDX

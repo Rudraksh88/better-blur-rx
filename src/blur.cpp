@@ -12,6 +12,8 @@
 
 #include "blur_cache.hpp"
 #include "kwin_version.hpp"
+#include "refraction_pass.hpp"
+#include "rounded_corners_pass.hpp"
 #include "utils.h"
 #include "window_manager.hpp"
 
@@ -186,15 +188,19 @@ BlurEffect::BlurEffect()
         m_noisePass.noiseTextureSizeLocation = m_noisePass.shader->uniformLocation("noiseTextureSize");
     }
 
+    // BBDX: managed extension objects
     m_windowManager = std::make_unique<BBDX::WindowManager>(this);
 
-    if (!m_refractionPass.ready())
+    m_blurCache = std::make_unique<BBDX::BlurCache>();
+    if (!m_blurCache->ready())
         return;
 
-    if (!m_roundedCornersPass.ready())
+    m_refractionPass = std::make_unique<BBDX::RefractionPass>();
+    if (!m_refractionPass->ready())
         return;
 
-    if (!m_blurCache.ready())
+    m_roundedCornersPass = std::make_unique<BBDX::RoundedCornersPass>();
+    if (!m_roundedCornersPass->ready())
         return;
 
     initBlurStrengthValues();
@@ -327,7 +333,7 @@ void BlurEffect::reconfigure(ReconfigureFlags flags)
 {
     Q_UNUSED(flags);
     m_settings.read();
-    m_refractionPass.reconfigure();
+    m_refractionPass->reconfigure();
     m_windowManager->reconfigure();
     m_forceContrastParams = BlurConfig::forceContrastParams();
 
@@ -910,7 +916,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     }
 
     // BBDX:
-    m_blurCache.updateBlurCacheDataBuffers(renderInfo, scaledBackgroundRect, textureFormat);
+    m_blurCache->updateBlurCacheDataBuffers(renderInfo, scaledBackgroundRect, textureFormat);
 
     // Fetch the pixels behind the shape that is going to be blurred.
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 5, 80)
@@ -983,7 +989,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
 
         // BBDX:
-        m_blurCache.setupVBO(scaledBackgroundRect, map, vboIndex);
+        m_blurCache->setupVBO(scaledBackgroundRect, map, vboIndex);
 
         // The geometry that will be painted on screen, in device pixels.
         for (const RectF &rect : effectiveShape) {
@@ -1035,10 +1041,10 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     vbo->bindArrays();
 
     // BBDX:
-    m_blurCache.maybeInvalidateCache(renderInfo.cache, opacity);
+    m_blurCache->maybeInvalidateCache(renderInfo.cache, opacity);
     if (renderInfo.cache.valid) {
         const float modulation = opacity * opacity;
-        m_blurCache.drawCached(scaledBackgroundRect, viewport, renderInfo, vbo, vertexCount, modulation);
+        m_blurCache->drawCached(scaledBackgroundRect, viewport, renderInfo, vbo, vertexCount, modulation);
         vbo->unbindArrays();
         return;
     }
@@ -1144,7 +1150,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         ShaderManager::instance()->popShader();
     } else {
 #endif
-        if (!m_refractionPass.pushShaderRectangular()) {
+        if (!m_refractionPass->pushShaderRectangular()) {
         ShaderManager::instance()->pushShader(m_onscreenPass.shader.get());
         } // indent intentional for KWin diff
 
@@ -1158,7 +1164,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         const QVector2D halfpixel(0.5 / read->colorAttachment()->width(),
                                   0.5 / read->colorAttachment()->height());
 
-        if (!m_refractionPass.setParametersRectangular(projectionMatrix,
+        if (!m_refractionPass->setParametersRectangular(projectionMatrix,
                                                        colorMatrix,
                                                        halfpixel,
                                                        float(m_offset),
@@ -1179,7 +1185,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
 
         // BBDX:
-        m_blurCache.drawToCache(renderInfo, vbo);
+        m_blurCache->drawToCache(renderInfo, vbo);
 
         if (modulation < 1.0) {
             glDisable(GL_BLEND);
@@ -1214,7 +1220,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             noiseTexture->bind();
 
             // BBDX:
-            m_blurCache.drawToCache(renderInfo, vbo);
+            m_blurCache->drawToCache(renderInfo, vbo);
 
             ShaderManager::instance()->popShader();
         }
@@ -1223,11 +1229,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     }
 
     if (const BorderRadius cornerRadius = m_windowManager->getEffectiveBorderRadius(w); !cornerRadius.isNull()) {
-        m_roundedCornersPass.apply(cornerRadius, viewport, scaledBackgroundRect, renderInfo, w, data, vbo, m_blurCache);
+        m_roundedCornersPass->apply(cornerRadius, viewport, scaledBackgroundRect, renderInfo, w, data, vbo, m_blurCache.get());
     }
 
     // BBDX:
-    m_blurCache.drawCached(scaledBackgroundRect, viewport, renderInfo, vbo, vertexCount, modulation);
+    m_blurCache->drawCached(scaledBackgroundRect, viewport, renderInfo, vbo, vertexCount, modulation);
     renderInfo.cache.valid = true;
 
     vbo->unbindArrays();

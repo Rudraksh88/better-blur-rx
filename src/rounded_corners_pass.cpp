@@ -41,7 +41,7 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
                                      const KWin::EffectWindow *w,
                                      const KWin::WindowPaintData &data,
                                      KWin::GLVertexBuffer *vbo,
-                                     const BBDX::BlurCache &blurCache) const {
+                                     const BBDX::BlurCache *blurCache) const {
         if (!ready()) [[unlikely]] {
             return;
         }
@@ -74,7 +74,7 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-        blurCache.drawToCache(renderInfo, vbo);
+        blurCache->drawToCache(renderInfo, vbo);
 
         glDisable(GL_BLEND);
 
