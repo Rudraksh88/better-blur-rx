@@ -18,29 +18,29 @@ BBDX::RefractionPass::RefractionPass() {
     // The refraction uses a modified version of
     // the contrast fragment shader.
 
-    m_rectangular.shader = KWin::ShaderManager::instance()->generateShaderFromFile(
+    m_shader = KWin::ShaderManager::instance()->generateShaderFromFile(
             KWin::ShaderTrait::MapTexture,
             QStringLiteral(":/effects/better_blur_dx/shaders/vertex.vert"),
             QStringLiteral(":/effects/better_blur_dx/shaders/refraction.frag"));
 
-    if (!m_rectangular.shader) {
+    if (!m_shader) {
         qCWarning(REFRACTION_PASS) << BBDX::LOG_PREFIX << "Failed to load refraction pass shader";
         return;
     } else {
         // contrast parameters
-        m_rectangular.mvpMatrixLocation = m_rectangular.shader->uniformLocation("modelViewProjectionMatrix");
-        m_rectangular.colorMatrixLocation = m_rectangular.shader->uniformLocation("colorMatrix");
-        m_rectangular.offsetLocation = m_rectangular.shader->uniformLocation("offset");
-        m_rectangular.halfpixelLocation = m_rectangular.shader->uniformLocation("halfpixel");
+        m_mvpMatrixLocation = m_shader->uniformLocation("modelViewProjectionMatrix");
+        m_colorMatrixLocation = m_shader->uniformLocation("colorMatrix");
+        m_offsetLocation = m_shader->uniformLocation("offset");
+        m_halfpixelLocation = m_shader->uniformLocation("halfpixel");
         // refraction parameters
-        m_rectangular.refractionRectSizeLocation = m_rectangular.shader->uniformLocation("refractionRectSize");
-        m_rectangular.refractionEdgeSizePixelsLocation = m_rectangular.shader->uniformLocation("refractionEdgeSizePixels");
-        m_rectangular.refractionCornerRadiusPixelsLocation = m_rectangular.shader->uniformLocation("refractionCornerRadiusPixels");
-        m_rectangular.refractionStrengthLocation = m_rectangular.shader->uniformLocation("refractionStrength");
-        m_rectangular.refractionNormalPowLocation = m_rectangular.shader->uniformLocation("refractionNormalPow");
-        m_rectangular.refractionRGBFringingLocation = m_rectangular.shader->uniformLocation("refractionRGBFringing");
-        m_rectangular.refractionTextureRepeatModeLocation = m_rectangular.shader->uniformLocation("refractionTextureRepeatMode");
-        m_rectangular.refractionModeLocation = m_rectangular.shader->uniformLocation("refractionMode");
+        m_refractionRectSizeLocation = m_shader->uniformLocation("refractionRectSize");
+        m_refractionEdgeSizePixelsLocation = m_shader->uniformLocation("refractionEdgeSizePixels");
+        m_refractionCornerRadiusPixelsLocation = m_shader->uniformLocation("refractionCornerRadiusPixels");
+        m_refractionStrengthLocation = m_shader->uniformLocation("refractionStrength");
+        m_refractionNormalPowLocation = m_shader->uniformLocation("refractionNormalPow");
+        m_refractionRGBFringingLocation = m_shader->uniformLocation("refractionRGBFringing");
+        m_refractionTextureRepeatModeLocation = m_shader->uniformLocation("refractionTextureRepeatMode");
+        m_refractionModeLocation = m_shader->uniformLocation("refractionMode");
     }
 }
 
@@ -86,43 +86,42 @@ void BBDX::RefractionPass::reconfigure() {
     m_mode = config->refractionMode();
 }
 
-bool BBDX::RefractionPass::pushShaderRectangular() const {
+bool BBDX::RefractionPass::pushShader() const {
     if (!enabled())
         return false;
 
-    KWin::ShaderManager::instance()->pushShader(m_rectangular.shader.get());
+    KWin::ShaderManager::instance()->pushShader(m_shader.get());
 
     return true;
 }
 
 
-bool BBDX::RefractionPass::setParametersRectangular(const QMatrix4x4 &projectionMatrix,
+bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
                                          const QMatrix4x4 &colorMatrix,
                                          const QVector2D &halfpixel,
                                          const float offset,
                                          const QRect &scaledBackgroundRect) const {
-
     if (!enabled())
         return false;
 
     // contrast parameters
-    m_rectangular.shader->setUniform(m_rectangular.mvpMatrixLocation, projectionMatrix);
-    m_rectangular.shader->setUniform(m_rectangular.colorMatrixLocation, colorMatrix);
-    m_rectangular.shader->setUniform(m_rectangular.halfpixelLocation, halfpixel);
-    m_rectangular.shader->setUniform(m_rectangular.offsetLocation, offset);
+    m_shader->setUniform(m_mvpMatrixLocation, projectionMatrix);
+    m_shader->setUniform(m_colorMatrixLocation, colorMatrix);
+    m_shader->setUniform(m_halfpixelLocation, halfpixel);
+    m_shader->setUniform(m_offsetLocation, offset);
     // refraction parameters
-    m_rectangular.shader->setUniform(m_rectangular.refractionRectSizeLocation,
+    m_shader->setUniform(m_refractionRectSizeLocation,
                                      QVector2D(scaledBackgroundRect.width(), scaledBackgroundRect.height()));
-    m_rectangular.shader->setUniform(m_rectangular.refractionEdgeSizePixelsLocation,
+    m_shader->setUniform(m_refractionEdgeSizePixelsLocation,
                                      std::min(static_cast<float>(m_edgeSizePixels),
                                               static_cast<float>(std::min(scaledBackgroundRect.width() / 2,
                                                                           scaledBackgroundRect.height() / 2))));
-    m_rectangular.shader->setUniform(m_rectangular.refractionCornerRadiusPixelsLocation, static_cast<float>(m_cornerRadiusPixels));
-    m_rectangular.shader->setUniform(m_rectangular.refractionStrengthLocation, static_cast<float>(m_strength));
-    m_rectangular.shader->setUniform(m_rectangular.refractionNormalPowLocation, static_cast<float>(m_normalPow));
-    m_rectangular.shader->setUniform(m_rectangular.refractionRGBFringingLocation, static_cast<float>(m_RGBFringing));
-    m_rectangular.shader->setUniform(m_rectangular.refractionTextureRepeatModeLocation, m_textureRepeatMode);
-    m_rectangular.shader->setUniform(m_rectangular.refractionModeLocation, m_mode);
+    m_shader->setUniform(m_refractionCornerRadiusPixelsLocation, static_cast<float>(m_cornerRadiusPixels));
+    m_shader->setUniform(m_refractionStrengthLocation, static_cast<float>(m_strength));
+    m_shader->setUniform(m_refractionNormalPowLocation, static_cast<float>(m_normalPow));
+    m_shader->setUniform(m_refractionRGBFringingLocation, static_cast<float>(m_RGBFringing));
+    m_shader->setUniform(m_refractionTextureRepeatModeLocation, m_textureRepeatMode);
+    m_shader->setUniform(m_refractionModeLocation, m_mode);
 
     return true;
 }

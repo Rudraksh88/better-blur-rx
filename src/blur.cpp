@@ -1151,7 +1151,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         ShaderManager::instance()->popShader();
     } else {
 #endif
-        if (!m_refractionPass->pushShaderRectangular()) {
+        if (!m_refractionPass->pushShader()) {
         ShaderManager::instance()->pushShader(m_onscreenPass.shader.get());
         } // indent intentional for KWin diff
 
@@ -1165,11 +1165,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         const QVector2D halfpixel(0.5 / read->colorAttachment()->width(),
                                   0.5 / read->colorAttachment()->height());
 
-        if (!m_refractionPass->setParametersRectangular(projectionMatrix,
-                                                       colorMatrix,
-                                                       halfpixel,
-                                                       float(m_offset),
-                                                       scaledBackgroundRect)) {
+        if (!m_refractionPass->setParameters(projectionMatrix,
+                                             colorMatrix,
+                                             halfpixel,
+                                             float(m_offset),
+                                             scaledBackgroundRect)) {
         m_onscreenPass.shader->setUniform(m_onscreenPass.mvpMatrixLocation, projectionMatrix);
         m_onscreenPass.shader->setUniform(m_onscreenPass.colorMatrixLocation, colorMatrix);
         m_onscreenPass.shader->setUniform(m_onscreenPass.halfpixelLocation, halfpixel);

@@ -12,8 +12,6 @@
   <file>shaders/onscreen_rounded.vert</file>
   <file>shaders/refraction.frag</file>
   <file>shaders/refraction_core.frag</file>
-  <file>shaders/refraction_rounded.frag</file>
-  <file>shaders/refraction_rounded_core.frag</file>
   <file>shaders/rounded_corners_core.frag</file>
   <file>shaders/rounded_corners.frag</file>
   <file>shaders/rounded_corners_core.vert</file>
