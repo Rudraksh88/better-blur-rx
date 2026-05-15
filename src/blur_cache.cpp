@@ -162,7 +162,7 @@ void BBDX::BlurCacheLRU::invalidate(QStringView reason) {
     qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX
                         << "Invalidating cache:" << m_windowClass << "\n"
                         << "PID:" << m_windowPID << "\n"
-                        << "Hits:" << totalHits << "over" << m_entries.size() << "cache entries" << "\n"
+                        << "Hits:" << totalHits << "across" << m_entries.size() << "cache entries" << "\n"
                         << "Reason:" << reason;
 
     m_entries.clear();
