@@ -256,10 +256,11 @@ void BBDX::BlurCache::selectCacheEntry(const KWin::Region &dirtyRegion,
         }
 
         // as a speedup assume cache for the same dirtyRegion is
-        // still valid for a short period
+        // still valid for a short period (equivalent to ~30fps)
         if (dirtyRegion == cacheEntry->dirtyRegion) {
             std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cacheEntry->verifiedAt);
-            if (elapsed < std::chrono::milliseconds{100}) {
+            constexpr std::chrono::milliseconds limit{1000 / 30};
+            if (elapsed <= limit) {
                 cache.select();
                 continue;
             }
