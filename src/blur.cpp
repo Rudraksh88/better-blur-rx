@@ -51,9 +51,10 @@
 #include <wayland/display.h>
 #include <wayland/surface.h>
 #include <x11window.h>
-#if KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
-// TODO: currently not shipped in KWin. Bug?
-// #include <wayland/backgroundeffect_v1.h>
+#if KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 91)
+// not shipped in KWin 6.6.90
+// https://invent.kde.org/plasma/kwin/-/merge_requests/9214
+#include <wayland/backgroundeffect_v1.h>
 #include <wayland_server.h>
 #endif
 
@@ -251,9 +252,8 @@ BlurEffect::BlurEffect()
     }
 #endif
 
-#if KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
-    // TODO: see includes
-    //waylandServer()->backgroundEffectManager()->addBlurCapability();
+#if KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 91)
+    waylandServer()->backgroundEffectManager()->addBlurCapability();
 #endif
 
     connect(effects, &EffectsHandler::windowAdded, this, &BlurEffect::slotWindowAdded);
@@ -288,9 +288,8 @@ BlurEffect::~BlurEffect()
     if (s_contrastManager) {
         s_contrastManagerRemoveTimer->start(1000);
     }
-#else
-    // TODO: see includes
-    //waylandServer()->backgroundEffectManager()->removeBlurCapability();
+#elif KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 91)
+    waylandServer()->backgroundEffectManager()->removeBlurCapability();
 #endif
 }
 
