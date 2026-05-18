@@ -343,7 +343,7 @@ void BBDX::BlurCache::selectCacheEntry(KWin::BlurRenderData &renderInfo,
         KWin::GLFramebuffer::pushFramebuffer(compareFramebuffer.get());
 
         QMatrix4x4 projectionMatrix;
-        projectionMatrix.ortho(QRectF(0.0, 0.0, blitTexture->width(), blitTexture->height()));
+        projectionMatrix.ortho(QRectF(0.0, 0.0, blitTexture->width() * m_textureCompareScaleFactor, blitTexture->height() * m_textureCompareScaleFactor));
 
         m_textureComparePass.shader->setUniform(m_textureComparePass.mvpMatrixLocation, projectionMatrix);
 
