@@ -906,12 +906,14 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     } else if (data.xTranslation() || data.yTranslation()) {
         blurShape.translate(std::round(data.xTranslation()), std::round(data.yTranslation()));
     }
+#if KWIN_VERSION < KWIN_VERSION_CODE(6, 5, 80)
     const QRect backgroundRect = blurShape.boundingRect();
     const QRect scaledBackgroundRect = snapToPixelGrid(scaledRect(backgroundRect, viewport.scale()));
-#if KWIN_VERSION < KWIN_VERSION_CODE(6, 5, 80)
     const QRect deviceBackgroundRect = scaledBackgroundRect;
 #else
-    const QRect deviceBackgroundRect = snapToPixelGrid(viewport.mapToDeviceCoordinates(backgroundRect));
+    const Rect backgroundRect = blurShape.boundingRect();
+    const Rect scaledBackgroundRect = backgroundRect.scaled(viewport.scale()).rounded();
+    const Rect deviceBackgroundRect = viewport.mapToDeviceCoordinates(backgroundRect).rounded();
 #endif
 #else
     RegionF blurShape = blurRegion(w);
@@ -955,7 +957,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     if (deviceRegion != Region::infinite()) {
         for (const Rect &clipRect : deviceRegion.rects()) {
             const RectF deviceClipRect = clipRect.translated(-deviceBackgroundRect.topLeft());
-            for (const RectF &shapeRect : blurShape.rects()) {
+            for (const Rect &shapeRect : blurShape.rects()) {
                 const RectF deviceShapeRect = shapeRect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded();
                 if (const RectF intersected = deviceClipRect.intersected(deviceShapeRect); !intersected.isEmpty()) {
                     effectiveShape.append(intersected);
@@ -963,7 +965,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             }
         }
     } else {
-        for (const RectF &rect : blurShape.rects()) {
+        for (const Rect &rect : blurShape.rects()) {
             effectiveShape.append(rect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded());
         }
     }
