@@ -6,12 +6,14 @@
 #include "utils.h"
 #include "window.hpp"
 
+#include <core/outputlayer.h>
 #include <core/pixelgrid.h>
 #include <core/renderviewport.h>
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
 #include <qloggingcategory.h>
 #include <scene/borderradius.h>
+#include <scene/windowitem.h>
 #include <window.h>
 
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 5, 80)
@@ -46,6 +48,7 @@ BBDX::WindowManager::WindowManager(BBDX::BlurEffect *effect) {
 
     connect(KWin::effects, &KWin::EffectsHandler::windowAdded, this, &WindowManager::slotWindowAdded);
     connect(KWin::effects, &KWin::EffectsHandler::windowDeleted, this, &WindowManager::slotWindowDeleted);
+    connect(KWin::effects, &KWin::EffectsHandler::viewRemoved, this, &WindowManager::slotViewRemoved);
 }
 
 void BBDX::WindowManager::slotWindowAdded(KWin::EffectWindow *w) {
@@ -70,6 +73,25 @@ void BBDX::WindowManager::slotWindowDeleted(KWin::EffectWindow *w) {
     if (const auto it = m_docks.find(w); it != m_docks.end()) {
         m_docks.erase(it);
         refreshMaximizedStateAll();
+    }
+}
+
+void BBDX::WindowManager::slotViewAdded(KWin::RenderView *view) {
+    if (!view->layer()) {
+        return;
+    }
+
+    qCDebug(WINDOW_MANAGER) << "Setting up new RenderView";
+
+    connect(view->layer(), &OutputLayer::repaintScheduled, this, [this, view]() {
+        m_repaints[view] |= view->mapFromDeviceCoordinatesAligned(view->layer()->deviceRepaints());
+    });
+}
+
+void BBDX::WindowManager::slotViewRemoved(KWin::RenderView *view) {
+    if (const auto it = m_repaints.find(view); it != m_repaints.end()) {
+        qCDebug(WINDOW_MANAGER) << "Removing RenderView";
+        m_repaints.erase(it);
     }
 }
 
@@ -340,11 +362,47 @@ qreal BBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, 
     return window->getEffectiveBlurOpacity(data);
 }
 
-void BBDX::WindowManager::expandPaintedRegions(KWin::ScreenPrePaintData &data) const {
+void BBDX::WindowManager::expandPaintedRegions(KWin::ScreenPrePaintData &data) {
+    // This feels very dirty but is what we have to do
+    // because ScreenPrePaintData doesn't have the actual repaints yet.
+    // (KWin only collects those after prePaintScreen)
+    // We'll collect our own Region of rough "blur repaints"
+    // (all blur regions of to-be-repainted windows)
+    
+    bool setupView{false};
+    if (auto it = m_repaints.find(data.view); it == m_repaints.end()) [[unlikely]] {
+        slotViewAdded(data.view);
+        setupView = true;
+    }
+    
+    KWin::Region blurRepaint{m_repaints[data.view]};
+    for (const auto &[kWindow, bbdxWindow] : m_windows) {
+        const auto &windowItem = kWindow->window()->windowItem();
+        if (!windowItem->hasRepaints(data.view)) {
+            continue;
+        }
+        
+        const KWin::RegionF blurRegion{m_effect->blurRegion(const_cast<KWin::EffectWindow *>(kWindow))};
+        for (const auto &rect : blurRegion.rects()) {
+#if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+            KWin::Rect roundedRect = rect;
+#else
+            KWin::Rect roundedRect = rect.rounded();
+#endif
+            roundedRect.translate(kWindow->pos().toPoint());
+
+            blurRepaint |= roundedRect;
+        }
+    }
+
+    qCDebug(WINDOW_MANAGER) << "blurRepaint (pre expand)" << blurRepaint;
+
+    // now keep expanding that repaint area
+    // so every overlapping blur regions gets repainted
     bool expanded{false};
     do {
         expanded = false;
-        for (auto &[kWindow, bbdxWindow] : m_windows) {
+        for (const auto &[kWindow, bbdxWindow] : m_windows) {
             // some windows should never expand
             if (kWindow->isDesktop()
                 || !kWindow->isVisible()) {
@@ -363,19 +421,24 @@ void BBDX::WindowManager::expandPaintedRegions(KWin::ScreenPrePaintData &data) c
 #endif
                 roundedRect.translate(kWindow->pos().toPoint());
 
-                // KWin clips this with the actual screen Rect 
-                // so we don't need to do that here
-                //
-                // TODO: Figure out if its somehow possible to
-                //       get existing paint data. data.paint
-                //       seems to be specific to effects and initially empty...
-                //if (data.paint.intersects(roundedRect)) {
-                    data.paint += roundedRect;
-                    //expanded = true;
-                //}
+                if (!blurRepaint.contains(roundedRect) && blurRepaint.intersects(roundedRect)) {
+                    blurRepaint |= roundedRect;
+                    expanded = true;
+                } else if (setupView) [[unlikely]] {
+                    // when first adding a new view the paint region
+                    // is likely incomplete
+                    blurRepaint |= roundedRect;
+                }
             }
         }
     } while (expanded);
+
+    qCDebug(WINDOW_MANAGER) << "blurRepaint (post expand)" << blurRepaint;
+
+    // KWin clips this with the actual screen Rect
+    // so we don't need to do that here
+    data.paint |= blurRepaint;
+    m_repaints[data.view] = KWin::Region{};
 }
 
 bool BBDX::WindowManager::windowHasTopLevelBlur(KWin::EffectWindow *w) const {

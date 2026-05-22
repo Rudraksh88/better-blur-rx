@@ -52,6 +52,12 @@ private:
     // docks seperate for maximized calculation
     std::unordered_set<const KWin::EffectWindow *> m_docks{};
 
+    /**
+     * Mapping of RenderView to a previously acquired repaint region
+     * from attached layer's OutputLayer::repaintScheduled events
+     */
+    std::unordered_map<const KWin::RenderView*, KWin::Region> m_repaints{};
+
     // window classes
     QList<QString> m_windowClassesFixed{};
     QList<QRegularExpression> m_windowClassesRegex{};
@@ -82,6 +88,8 @@ private:
 public Q_SLOT:
     void slotWindowAdded(KWin::EffectWindow *w);
     void slotWindowDeleted(KWin::EffectWindow *w);
+    void slotViewAdded(KWin::RenderView *view);
+    void slotViewRemoved(KWin::RenderView *view);
 
 public:
     explicit WindowManager(BBDX::BlurEffect *effect);
@@ -165,7 +173,7 @@ public:
      * blur regions allows us to pretty much always reuse the blurred texture
      * of previous paints if the scene didn't actually change
      */
-    void expandPaintedRegions(KWin::ScreenPrePaintData &data) const;
+    void expandPaintedRegions(KWin::ScreenPrePaintData &data);
 
     /**
      * Check if the provided window has "top level blur"
