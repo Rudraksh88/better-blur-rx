@@ -1024,7 +1024,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, dirtyRect, dirtyRect.translated(-backgroundRect.topLeft()));
     }
 #else
-    renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, backgroundRect, backgroundRect.translated(-backgroundRect.topLeft()));
+    for (const Rect &dirtyRect : dirtyRegion.rects()) {
+        renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, dirtyRect, dirtyRect.translated(-backgroundRect.topLeft()));
+    }
 #endif
     }
 
@@ -1138,6 +1140,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     // BBDX:
     if (!renderInfo.cache.valid()) {
+        // "slow" path in case selectCacheEntryEarly failed
         m_blurCache->selectCacheEntry(renderInfo, vbo, dirtyRegion);
     }
     if (renderInfo.cache.valid()) {
@@ -1146,6 +1149,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         vbo->unbindArrays();
         return;
     } else {
+        // fetch the entire backgroundRect when creating new cache entries
+        // which allows better reuse across different dirtyRegions
+        renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, backgroundRect, backgroundRect.translated(-backgroundRect.topLeft()));
         auto cacheEntry = std::make_unique<BBDX::BlurCacheEntry>(scaledBackgroundRect, textureFormat, renderInfo.framebuffers[0].get(), dirtyRegion);
         renderInfo.cache.add(std::move(cacheEntry));
     }
