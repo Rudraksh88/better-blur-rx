@@ -443,7 +443,7 @@ void BBDX::BlurCache::setupVBO(std::span<KWin::GLVertex2D> &map, size_t &vboInde
             rect.width() * m_textureCompareScaleFactor,
             rect.height() * m_textureCompareScaleFactor,
         };
-        const KWin::Rect localRect = localRectF.toAlignedRect().adjusted(5, 5, -5, -5);
+        const KWin::Rect localRect = localRectF.toAlignedRect();
 
         const float textureWidth = backgroundRect->width() * m_textureCompareScaleFactor;
         const float textureHeight = backgroundRect->height() * m_textureCompareScaleFactor;
