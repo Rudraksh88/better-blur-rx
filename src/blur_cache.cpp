@@ -76,6 +76,9 @@ std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::R
         qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Failed to create an offscreen framebuffer";
         return nullptr;
     }
+    KWin::GLFramebuffer::pushFramebuffer(entry->blitFramebuffer.get());
+    glClear(GL_COLOR_BUFFER_BIT);
+    KWin::GLFramebuffer::popFramebuffer();
 
     // check if we're only partially painting
     // if that's the case oldCacheEntry is required
