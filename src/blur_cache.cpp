@@ -91,7 +91,7 @@ std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::R
     bool partialPaint{!missingPaint.isEmpty()};
     
     if (partialPaint && oldCacheEntry) {
-        qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Partial paint - reusing old blur entry as base";
+        qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Partial paint with BlurCacheEntry caused by dirtyRegion:" << dirtyRegion;
 
         KWin::GLFramebuffer::pushFramebuffer(oldCacheEntry->blitFramebuffer.get());
         entry->blitFramebuffer->blitFromFramebuffer();
