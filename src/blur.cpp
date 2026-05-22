@@ -890,9 +890,12 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     }
 
     // BBDX: only blur top level for performance reasons
+    // TODO: this currently looks really bad e.g. when maximizing
+    /*
     if (!m_windowManager->windowHasTopLevelBlur(w)) {
         return;
     }
+    */
 
     // Compute the effective blur shape. Note that if the window is transformed, so will be the blur shape.
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
