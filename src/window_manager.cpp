@@ -10,6 +10,7 @@
 #include <core/renderviewport.h>
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
+#include <qloggingcategory.h>
 #include <scene/borderradius.h>
 #include <window.h>
 
@@ -337,4 +338,36 @@ qreal BBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, 
         return data.opacity();
 
     return window->getEffectiveBlurOpacity(data);
+}
+
+void BBDX::WindowManager::expandPaintedRegions(KWin::ScreenPrePaintData &data) const {
+    bool expanded{false};
+    do {
+        expanded = false;
+        for (auto &[kWindow, bbdxWindow] : m_windows) {
+            // some windows should never expand
+            if (kWindow->isDesktop()
+                || !kWindow->isVisible()) {
+                continue;
+            }
+
+            // const_cast note: this doesn't actually modify anything in kWindow
+            // but blurRegion wants a non-const EffectWindow
+            KWin::RegionF blurRegion{m_effect->blurRegion(const_cast<KWin::EffectWindow *>(kWindow))};
+
+            for (const auto &rect : blurRegion.rects()) {
+#if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+                KWin::Rect roundedRect = rect;
+#else
+                KWin::Rect roundedRect = rect.rounded();
+#endif
+                roundedRect.translate(kWindow->pos().toPoint());
+
+                //if (data.paint.intersects(roundedRect)) {
+                    data.paint += roundedRect;
+                    //expanded = true;
+                //}
+            }
+        }
+    } while (expanded);
 }

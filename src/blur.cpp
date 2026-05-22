@@ -689,6 +689,9 @@ void BlurEffect::prePaintScreen(ScreenPrePaintData &data)
     m_currentView = data.view;
 #endif
 
+    // BBDX:
+    m_windowManager->expandPaintedRegions(data);
+
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     effects->prePaintScreen(data, presentTime);
 #else
@@ -1029,7 +1032,6 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     }
 #endif
     }
-    renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, backgroundRect, backgroundRect.translated(-backgroundRect.topLeft()));
 
 
     // Upload the geometry: the first 6 vertices are used when downsampling and upsampling offscreen,

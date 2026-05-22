@@ -3,6 +3,7 @@
 #include "kwin_version.hpp"
 #include "window.hpp"
 
+#include <effect/effect.h>
 #include <effect/effecthandler.h>
 #include <effect/effectwindow.h>
 
@@ -156,6 +157,16 @@ public:
      * Get effective blur opacity for requested window
      */
     qreal getEffectiveBlurOpacity(const KWin::EffectWindow *w, KWin::WindowPaintData &data) const;
+
+    /**
+     * Expand the painted region in KWin::ScreenPrePaintData
+     * by all intersecting effective blur regions
+     *
+     * This might sound counter-productive but always painting the full
+     * blur regions allows us to pretty much always reuse the blurred texture
+     * of previous paints if the scene didn't actually change
+     */
+    void expandPaintedRegions(KWin::ScreenPrePaintData &data) const;
 };
 
 } // namespace KWin
