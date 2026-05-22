@@ -363,6 +363,9 @@ void BBDX::WindowManager::expandPaintedRegions(KWin::ScreenPrePaintData &data) c
 #endif
                 roundedRect.translate(kWindow->pos().toPoint());
 
+                // KWin clips this with the actual screen Rect 
+                // so we don't need to do that here
+                //
                 // TODO: Figure out if its somehow possible to
                 //       get existing paint data. data.paint
                 //       seems to be specific to effects and initially empty...
