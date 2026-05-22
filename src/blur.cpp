@@ -1017,7 +1017,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     const Region dirtyRegion = viewport.mapFromDeviceCoordinatesContained(deviceRegion) & backgroundRect;
 #endif
     m_blurCache->preparePaintData(&dirtyRegion, renderInfo.framebuffers[0].get(), &backgroundRect, &scaledBackgroundRect);
-    m_blurCache->selectCacheEntryEarly(renderInfo, dirtyRegion);
+    m_blurCache->selectCacheEntryEarly(renderInfo);
     if (!renderInfo.cache.valid()) {
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 5, 80)
     for (const QRect &dirtyRect : dirtyRegion) {
@@ -1141,7 +1141,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     // BBDX:
     if (!renderInfo.cache.valid()) {
         // "slow" path in case selectCacheEntryEarly failed
-        m_blurCache->selectCacheEntry(renderInfo, vbo, dirtyRegion);
+        m_blurCache->selectCacheEntry(renderInfo, vbo);
     }
     if (renderInfo.cache.valid()) {
         const float modulation = opacity * opacity;

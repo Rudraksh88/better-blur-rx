@@ -297,8 +297,7 @@ void BBDX::BlurCache::preparePaintData(const KWin::Region *dirtyRegion,
 }
 
 void BBDX::BlurCache::selectCacheEntry(KWin::BlurRenderData &renderInfo,
-                                       KWin::GLVertexBuffer *vbo,
-                                       const KWin::Region &dirtyRegion) {
+                                       KWin::GLVertexBuffer *vbo) {
     auto &cache = renderInfo.cache;
     KWin::GLTexture *blitTexture = renderInfo.framebuffers[0].get()->colorAttachment();
 
@@ -307,12 +306,6 @@ void BBDX::BlurCache::selectCacheEntry(KWin::BlurRenderData &renderInfo,
 
     cache.reset();
     while (auto cacheEntry = cache.next()) {
-        // a different dirtyRegion means different areas were blitted
-        // even if the texture itself looks the same
-        if (!dirtyRegionContains(cacheEntry->dirtyRegion, dirtyRegion)) {
-            continue;
-        }
-
         // fast path in case we already determined we
         // can't perform texture comparison
         if (m_glQueryAvailable == GLQueryAvailable::NONE) [[unlikely]] {
@@ -423,20 +416,16 @@ cleanup:
     }
 }
 
-void BBDX::BlurCache::selectCacheEntryEarly(KWin::BlurRenderData &renderInfo,
-                                            const KWin::Region &dirtyRegion) {
+void BBDX::BlurCache::selectCacheEntryEarly(KWin::BlurRenderData &renderInfo) {
     auto &cache = renderInfo.cache;
 
     cache.reset();
     while (auto cacheEntry = cache.next()) {
-        // assume cache for the same dirtyRegion is
-        // still valid for a short period (equivalent to ~30fps)
-        if (dirtyRegionContains(cacheEntry->dirtyRegion, dirtyRegion)) {
-            std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cacheEntry->verifiedAt);
-            constexpr std::chrono::milliseconds limit{1000 / 30};
-            if (elapsed <= limit) {
-                cache.select();
-            }
+        // assume cache is still valid for a short period (equivalent to ~30fps)
+        constexpr std::chrono::milliseconds limit{1000 / 30};
+        std::chrono::milliseconds elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cacheEntry->verifiedAt);
+        if (elapsed <= limit) {
+            cache.select();
         }
     }
 }

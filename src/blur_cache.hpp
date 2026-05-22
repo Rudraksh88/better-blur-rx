@@ -208,13 +208,13 @@ public:
      * Select a cache entry from renderInfo if a valid one exists
      * by comparing the underlying texture
      */
-    void selectCacheEntry(KWin::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo, const KWin::Region &dirtyRegion);
+    void selectCacheEntry(KWin::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo);
 
     /**
      * Select a cache entry from renderInfo if a valid one exists
-     * by checking if a recent one with same dirtyRegion exists
+     * by checking if a recent one exists
      */
-    void selectCacheEntryEarly(KWin::BlurRenderData &renderInfo, const KWin::Region &dirtyRegion);
+    void selectCacheEntryEarly(KWin::BlurRenderData &renderInfo);
 
     /**
      * Injects the geometry used for the cache, in logical pixels
