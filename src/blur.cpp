@@ -1170,6 +1170,8 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             w->addRepaintFull();
             return;
         }
+
+        // new cache entry which we'll fill now
         renderInfo.cache.add(std::move(cacheEntry));
     }
 
