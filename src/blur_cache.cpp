@@ -326,23 +326,13 @@ void BBDX::BlurCache::selectCacheEntry(BBDX::BlurRenderData &renderInfo,
             return;
         }
 
-        // TODO: replace clone for newTextureFBO
+        // QUERY START
+
+        // textures + FBOs used in query
         auto oldTextureFBO = std::pair{cacheEntry->blitTexture, cacheEntry->blitFramebuffer};
         auto newTextureFBO = std::pair{renderInfo.textures[0], renderInfo.framebuffers[0]};
         auto &[oldTexture, oldFramebuffer] = oldTextureFBO;
         auto &[newTexture, newFramebuffer] = newTextureFBO;
-
-        // collect the blit damage for future repaints
-        cacheEntry->updateBlitTexture(renderInfo.framebuffers[0].get(), *m_paintData.dirtyRegion);
-
-        // select if cache isn't dirty
-        // else we'll re-blur after which it's no longer dirty
-        if (cache.dirty()) {
-            cache.clearDirty();
-            return;
-        } else {
-            cache.select();
-        }
 
         // Hijack FBO of the cached blit to avoid needless reallocation.
         // glColorMask should keep it protected
@@ -462,7 +452,7 @@ void BBDX::BlurCache::selectCacheEntry(BBDX::BlurRenderData &renderInfo,
                                          m_paintData.window,
                                          *m_paintData.dirtyRegion,
                                          oldTextureFBO,
-                                         std::move(newTextureFBO));
+                                         newTextureFBO);
         queryQueued = true;
 
 cleanup:
@@ -477,6 +467,20 @@ cleanup:
 
         KWin::GLFramebuffer::popFramebuffer();
         KWin::ShaderManager::instance()->popShader();
+
+        // QUERY END
+
+        // collect the blit damage for future repaints
+        cacheEntry->updateBlitTexture(renderInfo.framebuffers[0].get(), *m_paintData.dirtyRegion);
+
+        // select if cache isn't dirty
+        // else we'll re-blur after which it's no longer dirty
+        if (cache.dirty()) {
+            cache.clearDirty();
+            return;
+        } else {
+            cache.select();
+        }
     }
 }
 
