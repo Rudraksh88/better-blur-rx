@@ -360,6 +360,9 @@ void BBDX::BlurCache::selectCacheEntry(BBDX::BlurRenderData &renderInfo,
         // collect the blit damage for future repaints
         cacheEntry->updateBlitTexture(renderInfo.framebuffers[0].get(), *m_paintData.dirtyRegion);
 
+        // ensure blits are complete
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_FRAMEBUFFER_BARRIER_BIT);
+
         // select if cache isn't dirty
         // else we'll re-blur after which it's no longer dirty
         if (cache.dirty()) {
