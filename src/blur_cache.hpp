@@ -180,7 +180,7 @@ class ValidationQuery {
     KWin::Region m_dirtyRegion{};
 
     std::pair<std::shared_ptr<KWin::GLTexture>, std::shared_ptr<KWin::GLFramebuffer>> m_oldTextureFBO{};
-    std::pair<std::unique_ptr<KWin::GLTexture>, std::unique_ptr<KWin::GLFramebuffer>> m_newTextureFBO{};
+    std::pair<std::shared_ptr<KWin::GLTexture>, std::shared_ptr<KWin::GLFramebuffer>> m_newTextureFBO{};
 
 public:
     enum class Result {
@@ -199,14 +199,14 @@ public:
                              const KWin::EffectWindow *window,
                              KWin::Region dirtyRegion,
                              std::pair<std::shared_ptr<KWin::GLTexture>, std::shared_ptr<KWin::GLFramebuffer>> oldTextureFBO,
-                             std::pair<std::unique_ptr<KWin::GLTexture>, std::unique_ptr<KWin::GLFramebuffer>> newTextureFBO)
+                             std::pair<std::shared_ptr<KWin::GLTexture>, std::shared_ptr<KWin::GLFramebuffer>> newTextureFBO)
         : m_queryObject{queryObject}
         , m_queryUsed{queryUsed}
         , m_view{view}
         , m_window{window}
         , m_dirtyRegion{dirtyRegion}
         , m_oldTextureFBO{oldTextureFBO}
-        , m_newTextureFBO{std::move(newTextureFBO)}
+        , m_newTextureFBO{newTextureFBO}
         {}
 
     /**

@@ -360,7 +360,7 @@ void BBDX::BlurCache::selectCacheEntry(BBDX::BlurRenderData &renderInfo,
 
         // TODO: replace clone for newTextureFBO
         auto oldTextureFBO = std::pair{cacheEntry->blitTexture, cacheEntry->blitFramebuffer};
-        auto newTextureFBO = cloneFBO(renderInfo.framebuffers[0].get());
+        auto newTextureFBO = std::pair{renderInfo.textures[0], renderInfo.framebuffers[0]};
         auto &[oldTexture, oldFramebuffer] = oldTextureFBO;
         auto &[newTexture, newFramebuffer] = newTextureFBO;
 
