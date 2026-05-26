@@ -195,6 +195,41 @@ void BBDX::BlurCacheLRU::setWindow(KWin::EffectWindow* w) {
     m_windowPID = m_window->pid();
 }
 
+BBDX::ValidationQuery::~ValidationQuery() {
+    glDeleteQueries(1, &m_queryObject);
+}
+
+BBDX::ValidationQuery::Result BBDX::ValidationQuery::result() const {
+
+    GLuint available{GL_FALSE};
+    glGetQueryObjectuiv(m_queryObject, GL_QUERY_RESULT_AVAILABLE, &available);
+
+    if (!available) {
+        return Result::WAITING;
+    }
+
+    switch (m_queryUsed) {
+        case GL_SAMPLES_PASSED: {
+                GLuint pixelsDifferent{0};
+                glGetQueryObjectuiv(m_queryObject, GL_QUERY_RESULT, &pixelsDifferent);
+                if (pixelsDifferent > 0) {
+                    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Pixels different:" << pixelsDifferent;
+                    return Result::CHANGED;
+                }
+                return Result::UNCHANGED;
+            }
+
+        [[likely]] default: {
+                GLuint anyPixelsDifferent{GL_FALSE};
+                glGetQueryObjectuiv(m_queryObject, GL_QUERY_RESULT, &anyPixelsDifferent);
+                if (anyPixelsDifferent == GL_TRUE) {
+                    return Result::CHANGED;
+                }
+                return Result::UNCHANGED;
+            }
+    }
+}
+
 BBDX::BlurCache::BlurCache(BBDX::BlurEffect *effect) {
     m_effect = effect;
 

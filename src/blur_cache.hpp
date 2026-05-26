@@ -155,6 +155,41 @@ public:
     KWin::EffectWindow* window() const { return m_window; }
 };
 
+class ValidationQuery {
+    GLuint m_queryObject{};
+    GLenum m_queryUsed{};
+    KWin::EffectWindow *m_window{};
+    KWin::Region m_dirtyRegion{};
+
+public:
+    enum class Result {
+        WAITING,
+        CHANGED,
+        UNCHANGED,
+    };
+
+    /**
+     * Construct using an *already created* queryObject.
+     * It is expected that the query was already sent to the GPU before.
+     */
+    explicit ValidationQuery(GLuint queryObject, GLenum queryUsed, KWin::EffectWindow *window, KWin::Region dirtyRegion)
+        : m_queryObject{queryObject}
+        , m_queryUsed{queryUsed}
+        , m_window{window}
+        , m_dirtyRegion{dirtyRegion}
+        {}
+
+    /**
+     * Cleans up the query
+     */
+    ~ValidationQuery();
+
+    /**
+     * Get the query result
+     */
+    Result result() const;
+};
+
 class BlurCache {
 private:
     struct {
@@ -206,6 +241,11 @@ private:
         KWin::Region textureCompareRegion{};
         uint textureCompareVertexCount;
     } m_paintData;
+
+    /**
+     * Running ValidationQueries, evaluated in prePaintScreen
+     */
+    std::vector<ValidationQuery> m_validationQueries{};
 
 public:
     /**
