@@ -344,7 +344,8 @@ public:
                           const KWin::Region *dirtyRegion,
                           const KWin::GLFramebuffer *blitFramebuffer,
                           const KWin::Rect *backgroundRect,
-                          const KWin::Rect *scaledBackgroundRect);
+                          const KWin::Rect *scaledBackgroundRect,
+                          BlurCacheLRU &cache);
 
     /**
      * Select a cache entry from renderInfo if a valid one exists

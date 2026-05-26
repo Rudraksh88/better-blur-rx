@@ -1032,7 +1032,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         renderInfo.framebuffers[0]->blitFromRenderTarget(renderTarget, viewport, dirtyRect, dirtyRect.translated(-backgroundRect.topLeft()));
     }
 #else
-    m_blurCache->preparePaintData(m_currentView, w, &dirtyRegion, renderInfo.framebuffers[0].get(), &backgroundRect, &scaledBackgroundRect);
+    m_blurCache->preparePaintData(m_currentView, w, &dirtyRegion, renderInfo.framebuffers[0].get(), &backgroundRect, &scaledBackgroundRect, renderInfo.cache);
     //m_blurCache->selectCacheEntryEarly(renderInfo);
 
     // BBDX: Always blit the entire backgroundRect to avoid subtle rounding errors on scaled RenderViews.

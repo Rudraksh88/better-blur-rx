@@ -318,7 +318,8 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderView *view,
                                        const KWin::Region *dirtyRegion,
                                        const KWin::GLFramebuffer *blitFramebuffer,
                                        const KWin::Rect *backgroundRect,
-                                       const KWin::Rect *scaledBackgroundRect) {
+                                       const KWin::Rect *scaledBackgroundRect,
+                                       BlurCacheLRU &cache) {
     m_paintData.view = view;
     m_paintData.window = window;
     m_paintData.dirtyRegion = dirtyRegion;
@@ -331,6 +332,13 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderView *view,
         m_paintData.textureCompareRegion |= rect.translated(-backgroundRect->topLeft());
     }
     m_paintData.textureCompareVertexCount = m_paintData.textureCompareRegion.rects().size() * 6;
+
+    // the cache entry needs to stay in sync
+    // so BlurCacheEntry::localDirtyRegion() returns
+    // correct info
+    if (auto cacheEntry = cache.get()) {
+        cacheEntry->backgroundRect = *backgroundRect;
+    }
 }
 
 void BBDX::BlurCache::selectCacheEntry(BBDX::BlurRenderData &renderInfo,
