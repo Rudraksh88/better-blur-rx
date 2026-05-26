@@ -501,17 +501,16 @@ void BBDX::BlurCache::checkCacheValidity(KWin::ScreenPrePaintData &data) {
 
         switch (query.result()) {
             case ValidationQuery::Result::CHANGED:
-                // add repaint
-                for (const auto &rect : query.dirtyRegion().rects()) {
-                    data.paint |= rect;
-                }
-
-                // mark cache dirty
+                // cache invalid, mark dirty and add repaint
                 if (auto it = m_effect->m_windows.find(const_cast<KWin::EffectWindow *>(query.window())); it != m_effect->m_windows.end()) {
                     auto &effectData = it->second;
                     if (auto it = effectData.render.find(data.view); it != effectData.render.end()) {
                         auto &renderInfo = it->second;
                         renderInfo.cache.setDirty();
+
+                        for (const auto &rect : query.dirtyRegion().rects()) {
+                            data.paint |= rect;
+                        }
                     }
                 }
 
