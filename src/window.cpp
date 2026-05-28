@@ -90,7 +90,14 @@ void BBDX::Window::slotWindowFinishUserMovedResized() {
 void BBDX::Window::slotWindowFrameGeometryChanged() {
     updateForceBlurRegion();
     refreshMaximizedState();
-    refreshWindowCoverage();
+
+    // we need to refresh all windows
+    // because a change to this window's geometry
+    // may mean a window underneath gets uncovered
+    //
+    // TODO: technically only refreshing intersecting
+    //       windows is enough
+    m_windowManager->refreshWindowCoverageAll();
 
     // Not sure if this is the best place to unset
     // this but seems to work fine for now
