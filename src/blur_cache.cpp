@@ -36,7 +36,6 @@ Q_LOGGING_CATEGORY(BLUR_CACHE, "kwin_effect_better_blur_dx.blur_cache", QtInfoMs
 
 
 std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::Rect &scaledBackgroundRect,
-                                                                   BBDX::BlurCacheEntry *oldCacheEntry,
                                                                    KWin::GLFramebuffer *dirtyBlitFramebuffer,
                                                                    KWin::Region dirtyRegion,
                                                                    KWin::Rect backgroundRect) {
@@ -62,8 +61,7 @@ std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::R
     glClear(GL_COLOR_BUFFER_BIT);
     KWin::GLFramebuffer::popFramebuffer();
 
-    // clone the blitTexture from the given existing cache framebuffer, then update it with
-    // the dirty region
+    // allocate new cached texture + framebuffer for the raw blit texture
     KWin::GLTexture *dirtyTexture = dirtyBlitFramebuffer->colorAttachment();
 
     entry->blitTexture = KWin::GLTexture::allocate(dirtyTexture->internalFormat(), dirtyTexture->size());
@@ -83,24 +81,15 @@ std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::R
     glClear(GL_COLOR_BUFFER_BIT);
     KWin::GLFramebuffer::popFramebuffer();
 
-    // check if we're only partially painting
-    // if that's the case oldCacheEntry is required
-    // to not get a partial texture
+    // copy data from dirtyRegion
+    entry->updateBlitTexture(dirtyBlitFramebuffer, dirtyRegion);
+
+    // mark initially partial entries
     KWin::Region missingPaint{backgroundRect.translated(-backgroundRect.topLeft())};
     for (const auto &rect : entry->localDirtyRegion(dirtyRegion).rects()) {
         missingPaint -= rect;
     }
-    bool partialPaint{!missingPaint.isEmpty()};
-    
-    if (partialPaint && !oldCacheEntry) [[unlikely]] {
-        entry->partial = true;
-    } else if (oldCacheEntry) [[likely]] {
-        KWin::GLFramebuffer::pushFramebuffer(oldCacheEntry->blitFramebuffer.get());
-        entry->blitFramebuffer->blitFromFramebuffer();
-        KWin::GLFramebuffer::popFramebuffer();
-    }
-
-    entry->updateBlitTexture(dirtyBlitFramebuffer, dirtyRegion);
+    entry->partial = !missingPaint.isEmpty();
 
     qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "New BlurCacheEntry:\n"
                                             << "Partial:" << entry->partial << "\n"

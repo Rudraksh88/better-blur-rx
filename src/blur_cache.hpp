@@ -67,7 +67,6 @@ struct BlurCacheEntry {
      * blitTexture is cloned from the provided blitFramebuffer.
      */
     static std::unique_ptr<BlurCacheEntry> create(const KWin::Rect &scaledBackgroundRect,
-                                                  BBDX::BlurCacheEntry *oldCacheEntry,
                                                   KWin::GLFramebuffer *dirtyBlitFramebuffer,
                                                   KWin::Region dirtyRegion,
                                                   KWin::Rect backgroundRect);
