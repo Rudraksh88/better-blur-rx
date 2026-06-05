@@ -45,13 +45,18 @@ static inline std::chrono::steady_clock::time_point validationsToTTL(uint valida
     // each validation cuts framerate in half
     double fps{60.0};
 
-    for (uint i{1}; i <= validations; i++) {
-        fps /= 2.0;
+    // 60/(2^6) = 0.9
+    if (validations < 6) {
+        for (uint i{1}; i <= validations; i++) {
+            fps /= 2.0;
+        }
+    } else {
+        fps = 1.0;
     }
 
     const auto fpsRounded = std::lround(std::max(fps, 1.0));
 
-    qCDebug(BLUR_CACHE) << "Rate limiting to:" << fpsRounded << "fps";
+    //qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Rate limiting to:" << fpsRounded << "fps";
 
     constexpr std::chrono::microseconds second{1000000};
     return std::chrono::steady_clock::now() + second / fpsRounded;
