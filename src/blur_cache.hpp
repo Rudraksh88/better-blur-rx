@@ -391,24 +391,6 @@ public:
                           BlurCacheLRU &cache);
 
     /**
-     * Select a cache entry from renderInfo if a valid one exists
-     * by comparing the underlying texture
-     */
-    void selectCacheEntry(BBDX::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo);
-
-    /**
-     * Select a cache entry from renderInfo if a valid one exists
-     * by checking if a recent one exists
-     */
-    void selectCacheEntryEarly(BBDX::BlurRenderData &renderInfo);
-
-    /**
-     * Check all finished queries for changes and issue
-     * repaints accordingly
-     */
-    void checkCacheValidity(KWin::ScreenPrePaintData &data);
-
-    /**
      * Injects the geometry used for the cache, in logical pixels
      * but scaled to what would be drawn on the device.
      *
