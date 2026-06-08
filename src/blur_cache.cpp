@@ -428,7 +428,9 @@ void BBDX::BlurCache::prepareCache(BBDX::BlurCacheLRU &cache,
             GLuint pixelsDifferent{0};
             glGetQueryObjectuiv(queryObject, GL_QUERY_RESULT, &pixelsDifferent);
             if (pixelsDifferent > 0) {
-                qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Pixels different:" << pixelsDifferent;
+                qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Pixels different ("
+                                    << m_paintData.window->windowClass() << ")"
+                                    << pixelsDifferent;
             }
             break;
         }
@@ -437,7 +439,8 @@ void BBDX::BlurCache::prepareCache(BBDX::BlurCacheLRU &cache,
             GLuint anyPixelsDifferent{GL_FALSE};
             glGetQueryObjectuiv(queryObject, GL_QUERY_RESULT, &anyPixelsDifferent);
             if (anyPixelsDifferent == GL_TRUE) {
-                qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Pixels different";
+                qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Pixels different ("
+                                    << m_paintData.window->windowClass() << ")";
             }
             break;
         }
