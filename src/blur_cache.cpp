@@ -81,20 +81,16 @@ std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::R
     KWin::GLFramebuffer::popFramebuffer();
 
     // copy data from dirtyRegion
-    entry->updateBlitTexture(dirtyBlitFramebuffer, dirtyRegion);
+    KWin::GLFramebuffer::pushFramebuffer(dirtyBlitFramebuffer);
+    for (const auto &rect : entry->localDirtyRegion(dirtyRegion).rects()) {
+        entry->blitFramebuffer->blitFromFramebuffer(rect, rect);
+    }
+    KWin::GLFramebuffer::popFramebuffer();
 
     qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "New BlurCacheEntry:\n"
                                             << "dirtyRegion:" << dirtyRegion;
 
     return entry;
-}
-
-void BBDX::BlurCacheEntry::updateBlitTexture(KWin::GLFramebuffer *dirtyBlitFramebuffer, const KWin::Region &dirtyRegion) {
-    KWin::GLFramebuffer::pushFramebuffer(dirtyBlitFramebuffer);
-    for (const auto &rect : localDirtyRegion(dirtyRegion).rects()) {
-        blitFramebuffer->blitFromFramebuffer(rect, rect);
-    }
-    KWin::GLFramebuffer::popFramebuffer();
 }
 
 KWin::Region BBDX::BlurCacheEntry::localDirtyRegion(const KWin::Region &dirtyRegion) const {

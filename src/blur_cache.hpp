@@ -67,11 +67,6 @@ struct BlurCacheEntry {
                                                   KWin::Rect backgroundRect);
 
     /**
-     * Update a BlurCacheEntry's blitTexture from the given dirtyBlitFramebuffer and dirtyRegion
-     */
-    void updateBlitTexture(KWin::GLFramebuffer *dirtyBlitFramebuffer, const KWin::Region &dirtyRegion);
-
-    /**
      * Add dirtyRegion to accumulatedDirtyRegion
      */
     void accumulateDirtyRegion(const KWin::Region &dirtyRegion);
