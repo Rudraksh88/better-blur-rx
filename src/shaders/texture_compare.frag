@@ -4,10 +4,11 @@ uniform sampler2D texUnitNew;
 varying vec2 uv;
 
 void main() {
-    // Cast physical screen fragment coordinate to integer
-    ivec2 physCoord = ivec2(gl_FragCoord.xy);
+    // get texture coordinate, clamped into texture
+    ivec2 texSize = textureSize(texUnitOld, 0);
+    ivec2 physCoord = clamp(ivec2(floor(uv * vec2(texSize))), ivec2(0), texSize - ivec2(1));
 
-    // Read the exact raw bytes from both FBOs
+    // read raw colors
     vec4 oldColor = texelFetch(texUnitOld, physCoord, 0);
     vec4 newColor = texelFetch(texUnitNew, physCoord, 0);
 
@@ -16,6 +17,6 @@ void main() {
         discard;
     }
 
-    // Write new color back to cached blit
+    // write new color back to cached blit
     gl_FragColor = newColor;
 }
