@@ -201,9 +201,9 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderView *view,
 }
 
 void BBDX::BlurCache::setupVBO(std::span<KWin::GLVertex2D> &map, size_t &vboIndex) const {
-    auto backgroundRect = m_paintData.backgroundRect;
-    auto scaledBackgroundRect = m_paintData.scaledBackgroundRect;
-    auto &textureCompareRegion = m_paintData.textureCompareRegion;
+    const auto backgroundRect = m_paintData.backgroundRect;
+    const auto scaledBackgroundRect = m_paintData.scaledBackgroundRect;
+    const auto &textureCompareRegion = m_paintData.textureCompareRegion;
 
     // The geometry used for texture comparison, in logical pixels
     // relative to backgroundRect
@@ -423,6 +423,9 @@ void BBDX::BlurCache::prepareCache(BBDX::BlurCacheLRU &cache,
 #if defined(BBDX_DEBUG)
     // GL_QUERY_RESULT is blocking and forces a CPU/GPU sync,
     // so only enable this in the debug build
+
+    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Comparing region:" << m_paintData.textureCompareRegion;
+
     switch (queryUsed) {
         case GL_SAMPLES_PASSED: {
             GLuint pixelsDifferent{0};
