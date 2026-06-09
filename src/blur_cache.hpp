@@ -39,10 +39,8 @@ struct BlurCacheEntry {
 
     // texture of the previous "raw" pixels (blit grabbed from scene)
     // used to create this cache entry
-    // Uses shared pointers because the validation query also gets
-    // a handle to these
-    std::shared_ptr<KWin::GLTexture> blitTexture{nullptr};
-    std::shared_ptr<KWin::GLFramebuffer> blitFramebuffer{nullptr};
+    std::unique_ptr<KWin::GLTexture> blitTexture{nullptr};
+    std::unique_ptr<KWin::GLFramebuffer> blitFramebuffer{nullptr};
 
     // backgroundRect used to create this cache entry
     KWin::Rect backgroundRect{};

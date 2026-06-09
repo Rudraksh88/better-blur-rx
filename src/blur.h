@@ -54,8 +54,8 @@ struct BlurRenderData
 {
     /// Temporary render targets needed for the Dual Kawase algorithm, the first texture
     /// contains not blurred background behind the window, it's cached.
-    std::vector<std::shared_ptr<GLTexture>> textures;
-    std::vector<std::shared_ptr<GLFramebuffer>> framebuffers;
+    std::vector<std::unique_ptr<GLTexture>> textures;
+    std::vector<std::unique_ptr<GLFramebuffer>> framebuffers;
 
     BBDX::BlurCacheLRU cache;
 };

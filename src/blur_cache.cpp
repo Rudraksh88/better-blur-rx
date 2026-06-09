@@ -341,17 +341,16 @@ void BBDX::BlurCache::prepareCache(BBDX::BlurCacheLRU &cache,
     // QUERY START
 
     // textures + FBOs used in query
-    auto cachedTextureFBO = std::pair{cacheEntry->blitTexture, cacheEntry->blitFramebuffer};
-    auto newTextureFBO = std::pair{m_paintData.blitFramebuffer->colorAttachment(), m_paintData.blitFramebuffer};
-    auto &[cachedTexture, cachedFramebuffer] = cachedTextureFBO;
-    auto &[newTexture, newFramebuffer] = newTextureFBO;
+    const auto cachedTexture = cacheEntry->blitTexture.get();
+    const auto cachedFramebuffer = cacheEntry->blitFramebuffer.get();
+    const auto newTexture = m_paintData.blitFramebuffer->colorAttachment();
 
     // check if textures differ on the pixel level
     KWin::ShaderManager::instance()->pushShader(m_textureComparePass.shader.get());
 
     // Use FBO of the cached blit; the query's draw will also
     // update this with pixels from the new blit (if it differs)
-    KWin::GLFramebuffer::pushFramebuffer(cachedFramebuffer.get());
+    KWin::GLFramebuffer::pushFramebuffer(cachedFramebuffer);
 
     QMatrix4x4 projectionMatrix;
     projectionMatrix.ortho(QRectF(0.0, 0.0, newTexture->width(), newTexture->height()));
