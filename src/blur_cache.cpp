@@ -157,18 +157,6 @@ void BBDX::BlurCacheLRU::setWindow(KWin::EffectWindow* w) {
 BBDX::BlurCache::BlurCache(BBDX::BlurEffect *effect) {
     m_effect = effect;
 
-    m_textureComparePass.shader = KWin::ShaderManager::instance()->generateShaderFromFile(KWin::ShaderTrait::MapTexture,
-                                                                           QStringLiteral(":/effects/better_blur_dx/shaders/vertex.vert"),
-                                                                           QStringLiteral(":/effects/better_blur_dx/shaders/texture_compare.frag"));
-    if (!m_textureComparePass.shader) {
-        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Failed to load texture compare pass shader";
-        return;
-    } else {
-        m_textureComparePass.mvpMatrixLocation = m_textureComparePass.shader->uniformLocation("modelViewProjectionMatrix");
-        m_textureComparePass.texUnitOldLocation = m_textureComparePass.shader->uniformLocation("texUnitOld");
-        m_textureComparePass.texUnitNewLocation = m_textureComparePass.shader->uniformLocation("texUnitNew");
-    }
-
     m_texturePass.shader = KWin::ShaderManager::instance()->generateShaderFromFile(KWin::ShaderTrait::MapTexture,
                                                                            QStringLiteral(":/effects/better_blur_dx/shaders/vertex.vert"),
                                                                            QStringLiteral(":/effects/better_blur_dx/shaders/texture.frag"));

@@ -129,13 +129,6 @@ private:
     struct {
         std::unique_ptr<KWin::GLShader> shader;
         int mvpMatrixLocation;
-        int texUnitOldLocation;
-        int texUnitNewLocation;
-    } m_textureComparePass;
-
-    struct {
-        std::unique_ptr<KWin::GLShader> shader;
-        int mvpMatrixLocation;
     } m_texturePass;
 
     // pointer to the managing effect
