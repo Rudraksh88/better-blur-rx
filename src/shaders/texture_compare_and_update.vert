@@ -1,5 +1,3 @@
-#version 430
-
 // glQuery glue for texture_compare_and_update.comp
 
 void main() {
