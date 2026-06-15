@@ -162,6 +162,11 @@ public:
      * Add a full repaint to all blurred windows
      */
     void repaintAllBlurredWindows() const;
+
+    /**
+     * Flush all caches of a window
+     */
+    void flushWindowCaches(BBDX::Window *window) const;
 };
 
 } // namespace KWin
