@@ -63,8 +63,10 @@ struct BlurCacheEntry {
     /**
      * true if accumulatedDirtyRegion was consumed in prePaintScreen
      * and we need to to check and potentially re-blur
+     *
+     * A new cache entry should always flush immediately
      */
-    bool isFlushing{false};
+    bool isFlushing{true};
 
     /**
      * Create a new BlurCacheEntry by allocating cachedTexture and cachedFramebuffer
