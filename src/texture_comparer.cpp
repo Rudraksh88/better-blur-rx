@@ -256,6 +256,11 @@ void BBDX::TextureComparer::compareAndUpdate(const std::pair<GLuint, GLuint> &wi
     glUseProgram(computeShader->program);
 
     for (const auto &rect : localDirtyRegionGL.rects()) {
+        // sanity check the Rect is not empty
+        if (rect.width() <= 0 || rect.height() <= 0) {
+            continue;
+        }
+
         // bind dirtyRect, in OpenGL coords
         glUniform4i(computeShader->dirtyRectLocation, rect.x(), rect.y(), rect.width(), rect.height());
 
