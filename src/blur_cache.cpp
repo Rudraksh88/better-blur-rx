@@ -311,18 +311,25 @@ void BBDX::BlurCache::prepareCache(BBDX::BlurCacheLRU &cache) {
     }
 
     const auto textureCompareWindowDataSlot = textureCompareWindowData->getSlot();
+    if (!textureCompareWindowDataSlot) {
+        // we didn't get a slot (meaning all queries are busy)
+        // abort this flush
+        qCWarning(BLUR_CACHE) << "All queries busy - aborting cache flush";
+        cacheEntry->isFlushing = false;
+        return;
+    }
 
     const auto newTexture = m_paintData.blitFramebuffer->colorAttachment();
     const auto cachedTexture = cacheEntry->blitTexture.get();
 
-    m_textureComparer->compareAndUpdate(textureCompareWindowDataSlot,
+    m_textureComparer->compareAndUpdate(*textureCompareWindowDataSlot,
                                         newTexture,
                                         cachedTexture,
                                         cacheEntry->localDirtyRegionGL(*m_paintData.dirtyRegion),
                                         m_paintData.window);
 
     // await the query from TextureComparer::compareAndUpdate()
-    glBeginConditionalRender(textureCompareWindowDataSlot.second, GL_QUERY_BY_REGION_WAIT);
+    glBeginConditionalRender(textureCompareWindowDataSlot->second, GL_QUERY_BY_REGION_WAIT);
     m_paintData.glBeginConditionalRenderCalled = true;
 
     // *if* the texture changed we need to ensure it's fully flushed

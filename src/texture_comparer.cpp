@@ -61,6 +61,13 @@ std::unique_ptr<BBDX::TextureComparer::WindowData> BBDX::TextureComparer::Window
     }
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
+    // spin up a dummy query on all query objects so they
+    // have a defined state
+    for (const auto &query : windowData->m_queries) {
+        glBeginQuery(GL_ANY_SAMPLES_PASSED, query);
+        glEndQuery(GL_ANY_SAMPLES_PASSED);
+    }
+
     return windowData;
 }
 
@@ -70,14 +77,24 @@ BBDX::TextureComparer::WindowData::~WindowData() {
 }
 
 
-std::pair<GLuint, GLuint> BBDX::TextureComparer::WindowData::getSlot() {
-    const int slot = m_nextSlot;
+std::optional<std::pair<GLuint, GLuint>> BBDX::TextureComparer::WindowData::getSlot() {
+    int slot{m_lastSlot + 1};
 
-    if (++m_nextSlot >= SLOTS) {
-        m_nextSlot = 0;
+    while (slot != m_lastSlot) {
+        if (slot >= SLOTS) {
+            slot = 0;
+        }
+
+        GLuint result{GL_FALSE};
+        glGetQueryObjectuiv(m_queries[slot], GL_QUERY_RESULT_AVAILABLE, &result);
+        if (result == GL_TRUE) {
+            return {{m_counterBuffers[slot], m_queries[slot]}};
+        }
+
+        slot++;
     }
 
-    return {m_counterBuffers[slot], m_queries[slot]};
+    return std::nullopt;
 }
 
 std::unique_ptr<BBDX::TextureComparer::ComputeShader> BBDX::TextureComparer::buildComputeShader(GLenum textureFormat) {

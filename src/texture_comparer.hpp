@@ -27,9 +27,9 @@ public:
         static constexpr int SLOTS{3};
 
         /**
-         * Next slot to return
+         * Last returned slot
          */
-        int m_nextSlot{0};
+        int m_lastSlot{0};
 
         /**
          * SSBO counting changed blocks
@@ -60,8 +60,10 @@ public:
 
         /**
          * Get a matching {counterBuffer, query} tuple
+         *
+         * returns nullopt if all query objects are currently busy
          */
-        std::pair<GLuint, GLuint> getSlot();
+        std::optional<std::pair<GLuint, GLuint>> getSlot();
     };
 
 private:
