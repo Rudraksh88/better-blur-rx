@@ -285,6 +285,8 @@ void BBDX::TextureComparer::compareAndUpdate(const std::pair<GLuint, GLuint> &wi
     // prepare dirtyRegion
     const auto [glDirtyRegion, boundingRect] = localDirtyRegionGL(*paintData.dirtyRegion, *paintData.backgroundRect);
 
+    qCDebug(BBDX_TEXTURE_COMPARER) << "Comparing texture region with bounds in" << boundingRect;
+
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, computeShader->dirtyRegionBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, glDirtyRegion.size() * sizeof(ComputeShaderRect), glDirtyRegion.data(), GL_STREAM_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, computeShader->dirtyRegionBuffer);
