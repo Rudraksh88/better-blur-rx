@@ -301,7 +301,9 @@ void BBDX::TextureComparer::compareAndUpdate(const std::pair<GLuint, GLuint> &wi
     glUniform4i(computeShader->dirtyRegionBoundingBoxLocation, boundingRect.x(), boundingRect.y(), boundingRect.width(), boundingRect.height());
 
     // dispatch in 16x16 workgroup blocks (ceiled, matching compute shader params)
-    glDispatchCompute((boundingRect.width() + 15) / 16, (boundingRect.height() + 15) / 16, 1);
+    if (boundingRect.width() > 0 && boundingRect.height() > 0) {
+        glDispatchCompute((boundingRect.width() + 15) / 16, (boundingRect.height() + 15) / 16, 1);
+    }
 
 #if defined(BBDX_DEBUG)
     // in debug builds log the changed pixels
