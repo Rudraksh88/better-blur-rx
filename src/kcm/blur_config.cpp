@@ -25,6 +25,8 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QEvent>
+#include <QSlider>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QLabel>
@@ -35,7 +37,6 @@
 #include <QRadioButton>
 #include <QSpinBox>
 #include <QStringList>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
@@ -50,7 +51,8 @@ enum OverrideField {
 };
 }
 
-namespace BBDX {
+namespace BBDX
+{
 
 K_PLUGIN_CLASS(BlurEffectConfig)
 
@@ -60,6 +62,50 @@ BlurEffectConfig::BlurEffectConfig(QObject *parent, const KPluginMetaData &data)
     ui.setupUi(widget());
     BlurConfig::instance("kwinrc");
     addConfig(BlurConfig::self(), widget());
+
+    // macOS-style settings cards: bold section headers above rounded panels
+    // with thin separators between rows.
+    widget()->setStyleSheet(QStringLiteral(
+        "QFrame[settingsCard=\"true\"] {"
+        "  background-color: palette(base);"
+        "  border: 1px solid rgba(255, 255, 255, 5%);"
+        "  border-radius: 5px;"
+        "}"
+        "QFrame[cardSeparator=\"true\"] { color: palette(midlight); }"
+        "QLabel[sectionHeader=\"true\"] { margin-left: 2px; margin-top: 4px; }"));
+
+    // Qt stylesheets ignore letter-spacing (and weight numbers), so style the
+    // section headers through QFont instead.
+    for (auto *header : widget()->findChildren<QLabel *>()) {
+        if (!header->property("sectionHeader").toBool()) {
+            continue;
+        }
+        QFont font = header->font();
+        font.setBold(true);
+        font.setLetterSpacing(QFont::AbsoluteSpacing, 0.2);
+        header->setFont(font);
+    }
+
+    // Align the right edge within each card: every spinbox/combobox in a card
+    // gets the width of the widest one.
+    for (auto *card : widget()->findChildren<QFrame *>()) {
+        if (!card->property("settingsCard").toBool()) {
+            continue;
+        }
+        QList<QWidget *> inputs;
+        for (auto *child : card->findChildren<QWidget *>()) {
+            if (qobject_cast<QAbstractSpinBox *>(child) || qobject_cast<QComboBox *>(child)) {
+                inputs.append(child);
+            }
+        }
+        int maxWidth = 0;
+        for (const auto *input : std::as_const(inputs)) {
+            maxWidth = qMax(maxWidth, input->sizeHint().width());
+        }
+        for (auto *input : std::as_const(inputs)) {
+            input->setFixedWidth(maxWidth);
+        }
+    }
 
     QFile about(":/effects/better_blur_dx/kcm/about.html");
     if (about.open(QIODevice::ReadOnly)) {
@@ -76,6 +122,9 @@ BlurEffectConfig::BlurEffectConfig(QObject *parent, const KPluginMetaData &data)
 
     connect(ui.kcfg_RefractionMode, &QComboBox::currentIndexChanged, this, &BlurEffectConfig::slotRefractionModeChanged);
     slotRefractionModeChanged(ui.kcfg_RefractionMode->currentIndex());
+
+    // Fix up the hosting dialog's window title once it shows.
+    widget()->installEventFilter(this);
 }
 
 BlurEffectConfig::~BlurEffectConfig() {}
@@ -133,41 +182,38 @@ void BlurEffectConfig::setupContextualHelp() {
     );
 }
 
-void BlurEffectConfig::setupSpinboxSliderSync() {
-    // Blur Strength
-    ui.spinboxBlurStrength->setValue(ui.kcfg_BlurStrength->value());
-    connect(ui.kcfg_BlurStrength, &QSlider::valueChanged, this, [this](int value) {
-            if (ui.spinboxBlurStrength->value() != value) ui.spinboxBlurStrength->setValue(value); });
-    connect(ui.spinboxBlurStrength, &QSpinBox::valueChanged, this, [this](int value) {
-            if (ui.kcfg_BlurStrength->value() != value) ui.kcfg_BlurStrength->setValue(value); });
+void BlurEffectConfig::setupSpinboxSliderSync()
+{
+    // Every slider gets a spinbox companion showing (and accepting) the exact value.
+    const auto sync = [this](QSlider *slider, QSpinBox *spinbox) {
+        connect(slider, &QSlider::valueChanged, spinbox, &QSpinBox::setValue);
+        connect(spinbox, &QSpinBox::valueChanged, slider, &QSlider::setValue);
+        spinbox->setValue(slider->value());
+    };
 
-    // Noise Strength
-    ui.spinboxNoiseStrength->setValue(ui.kcfg_NoiseStrength->value());
-    connect(ui.kcfg_NoiseStrength, &QSlider::valueChanged, this, [this](int value) {
-            if (ui.spinboxNoiseStrength->value() != value) ui.spinboxNoiseStrength->setValue(value); });
-    connect(ui.spinboxNoiseStrength, &QSpinBox::valueChanged, this, [this](int value) {
-            if (ui.kcfg_NoiseStrength->value() != value) ui.kcfg_NoiseStrength->setValue(value); });
+    sync(ui.kcfg_BlurStrength, ui.spinboxBlurStrength);
+    sync(ui.kcfg_NoiseStrength, ui.spinboxNoiseStrength);
+    sync(ui.kcfg_Brightness, ui.spinboxBrightness);
+    sync(ui.kcfg_Saturation, ui.spinboxSaturation);
+    sync(ui.kcfg_Contrast, ui.spinboxContrast);
+    sync(ui.kcfg_RefractionStrength, ui.spinboxRefractionStrength);
+    sync(ui.kcfg_RefractionEdgeSize, ui.spinboxRefractionEdgeSize);
+    sync(ui.kcfg_RefractionNormalPow, ui.spinboxRefractionNormalPow);
+    sync(ui.kcfg_RefractionCornerRadius, ui.spinboxRefractionCornerRadius);
+    sync(ui.kcfg_RefractionRGBFringing, ui.spinboxRefractionRGBFringing);
+}
 
-    // Brightness
-    ui.spinboxBrightness->setValue(ui.kcfg_Brightness->value());
-    connect(ui.kcfg_Brightness, &QSlider::valueChanged, this, [this](int value) {
-            if (ui.spinboxBrightness->value() != value) ui.spinboxBrightness->setValue(value); });
-    connect(ui.spinboxBrightness, &QSpinBox::valueChanged, this, [this](int value) {
-            if (ui.kcfg_Brightness->value() != value) ui.kcfg_Brightness->setValue(value); });
-
-    // Saturation
-    ui.spinboxSaturation->setValue(ui.kcfg_Saturation->value());
-    connect(ui.kcfg_Saturation, &QSlider::valueChanged, this, [this](int value) {
-            if (ui.spinboxSaturation->value() != value) ui.spinboxSaturation->setValue(value); });
-    connect(ui.spinboxSaturation, &QSpinBox::valueChanged, this, [this](int value) {
-            if (ui.kcfg_Saturation->value() != value) ui.kcfg_Saturation->setValue(value); });
-
-    // Contrast
-    ui.spinboxContrast->setValue(ui.kcfg_Contrast->value());
-    connect(ui.kcfg_Contrast, &QSlider::valueChanged, this, [this](int value) {
-            if (ui.spinboxContrast->value() != value) ui.spinboxContrast->setValue(value); });
-    connect(ui.spinboxContrast, &QSpinBox::valueChanged, this, [this](int value) {
-            if (ui.kcfg_Contrast->value() != value) ui.kcfg_Contrast->setValue(value); });
+bool BlurEffectConfig::eventFilter(QObject *watched, QEvent *event)
+{
+    // The Desktop Effects KCM hosts this module in a generic dialog titled
+    // "Configure — System Settings"; rename it when it appears. Embedded
+    // (non-dialog) hosts are left alone.
+    if (watched == widget() && event->type() == QEvent::Show) {
+        if (auto *dialog = qobject_cast<QDialog *>(widget()->window())) {
+            dialog->setWindowTitle(QStringLiteral("Configure — Better Blur DX"));
+        }
+    }
+    return KCModule::eventFilter(watched, event);
 }
 
 void BlurEffectConfig::setupConstraints() {
@@ -214,14 +260,11 @@ void BlurEffectConfig::slotRefractionModeChanged(int index) {
     if (ui.kcfg_RefractionCornerRadius) {
         ui.kcfg_RefractionCornerRadius->setEnabled(concave);
     }
+    if (ui.spinboxRefractionCornerRadius) {
+        ui.spinboxRefractionCornerRadius->setEnabled(concave);
+    }
     if (ui.labelRefractionCornerRadius) {
         ui.labelRefractionCornerRadius->setEnabled(concave);
-    }
-    if (ui.sliderLabelRefractionCornerRadiusSquare) {
-        ui.sliderLabelRefractionCornerRadiusSquare->setEnabled(concave);
-    }
-    if (ui.sliderLabelRefractionCornerRadiusRound) {
-        ui.sliderLabelRefractionCornerRadiusRound->setEnabled(concave);
     }
 }
 

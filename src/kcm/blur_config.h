@@ -17,7 +17,8 @@
 
 #include <optional>
 
-namespace BBDX {
+namespace BBDX
+{
 
 class BlurEffectConfig : public KCModule {
     Q_OBJECT
@@ -43,6 +44,7 @@ public:
     ~BlurEffectConfig() override;
 
     void save() override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 public Q_SLOTS:
     void slotRefractionModeChanged(int index);
