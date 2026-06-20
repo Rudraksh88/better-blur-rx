@@ -868,6 +868,262 @@
      </widget>
      <widget class="QWidget">
       <attribute name="title">
+       <string>Window Overrides</string>
+      </attribute>
+      <layout class="QVBoxLayout">
+       <item>
+        <layout class="QHBoxLayout">
+         <item>
+          <widget class="QLabel" name="windowOverridesBriefDescription">
+           <property name="text">
+            <string>Override blur settings for specific windows. Rules are checked top to bottom; the first matching rule wins.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="KContextualHelpButton" name="windowOverridesContextualHelp">
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" stretch="1,1">
+         <item>
+          <layout class="QVBoxLayout">
+           <item>
+            <widget class="QListWidget" name="overridesList"/>
+           </item>
+           <item>
+            <layout class="QHBoxLayout">
+             <item>
+              <widget class="QPushButton" name="addOverrideButton">
+               <property name="text">
+                <string>Add</string>
+               </property>
+               <property name="icon">
+                <iconset theme="list-add"/>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="removeOverrideButton">
+               <property name="text">
+                <string>Remove</string>
+               </property>
+               <property name="icon">
+                <iconset theme="list-remove"/>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="moveOverrideUpButton">
+               <property name="toolTip">
+                <string>Move rule up</string>
+               </property>
+               <property name="icon">
+                <iconset theme="arrow-up"/>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QToolButton" name="moveOverrideDownButton">
+               <property name="toolTip">
+                <string>Move rule down</string>
+               </property>
+               <property name="icon">
+                <iconset theme="arrow-down"/>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="overridesButtonSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="overrideEditorGroup">
+           <property name="title">
+            <string>Rule settings</string>
+           </property>
+           <layout class="QFormLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="overrideClassLabel">
+              <property name="text">
+               <string>Window class:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <layout class="QVBoxLayout">
+              <item>
+               <widget class="QLineEdit" name="overrideClassEdit">
+                <property name="placeholderText">
+                 <string>e.g. org.kde.dolphin or /regex/</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <layout class="QHBoxLayout">
+                <item>
+                 <spacer name="detectButtonSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>10</width>
+                    <height>10</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="detectWindowButton">
+                  <property name="text">
+                   <string>Detect…</string>
+                  </property>
+                  <property name="icon">
+                   <iconset theme="edit-find"/>
+                  </property>
+                  <property name="toolTip">
+                   <string>Click on a window to detect its properties</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QCheckBox" name="overrideRadiusCheck">
+              <property name="text">
+               <string>Corner radius:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QDoubleSpinBox" name="overrideRadiusBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="decimals">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <double>1000.000000000000000</double>
+              </property>
+              <property name="suffix">
+               <string> px</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QCheckBox" name="overrideBrightnessCheck">
+              <property name="text">
+               <string>Brightness:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QSpinBox" name="overrideBrightnessBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="maximum">
+               <number>500</number>
+              </property>
+              <property name="suffix">
+               <string> %</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QCheckBox" name="overrideSaturationCheck">
+              <property name="text">
+               <string>Saturation:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QSpinBox" name="overrideSaturationBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="maximum">
+               <number>500</number>
+              </property>
+              <property name="suffix">
+               <string> %</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QCheckBox" name="overrideContrastCheck">
+              <property name="text">
+               <string>Contrast:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QSpinBox" name="overrideContrastBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="maximum">
+               <number>500</number>
+              </property>
+              <property name="suffix">
+               <string> %</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0" colspan="2">
+             <widget class="QLabel" name="overrideInheritHint">
+              <property name="text">
+               <string>Unchecked settings inherit the global values from the other tabs.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="kcfg_WindowOverrides">
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget">
+      <attribute name="title">
        <string>About</string>
       </attribute>
       <layout class="QVBoxLayout">

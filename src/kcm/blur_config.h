@@ -11,6 +11,12 @@
 #include <QWidget>
 #include <KContextualHelpButton>
 
+#include <QList>
+#include <QString>
+#include <QVariantMap>
+
+#include <optional>
+
 namespace BBDX {
 
 class BlurEffectConfig : public KCModule {
@@ -40,6 +46,36 @@ public:
 
 public Q_SLOTS:
     void slotRefractionModeChanged(int index);
+
+private:
+    // Window-specific overrides.
+    // The rule list + editor form are a visible front-end for the hidden,
+    // KConfigSkeleton-managed kcfg_WindowOverrides text edit. The two are kept
+    // in sync; m_syncingOverrides guards against recursion between them and
+    // m_loadingEditor suppresses editor change signals while a rule is being
+    // loaded into the form.
+    struct OverrideRule {
+        QString windowClass;
+        std::optional<double> cornerRadius;
+        std::optional<int> brightness;
+        std::optional<int> saturation;
+        std::optional<int> contrast;
+    };
+
+    void setupWindowOverrides();
+    void rebuildRulesFromText();
+    void writeRulesToText();
+    void loadEditorFromRule(int row);
+    void applyEditorToRule();
+    void updateOverrideItemLabel(int row);
+    void updateOverrideButtonsState();
+    void moveOverrideRule(int delta);
+    void slotDetectWindow();
+    void showDetectedProperties(const QVariantMap &info);
+
+    QList<OverrideRule> m_overrideRules;
+    bool m_syncingOverrides{false};
+    bool m_loadingEditor{false};
 };
 
 } // namespace BBDX
