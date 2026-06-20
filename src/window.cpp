@@ -355,6 +355,13 @@ void BBDX::Window::reconfigure() {
 
     m_userBorderRadius = m_windowManager->userBorderRadius();
 
+    if (const auto *o = m_windowManager->overrideFor(m_effectwindow); o && o->cornerRadius) {
+        m_hasRadiusOverride = true;
+        m_overrideRadius = *o->cornerRadius;
+    } else {
+        m_hasRadiusOverride = false;
+    }
+
     slotWindowOpacityChanged(effectwindow(), 0.0, effectwindow()->opacity());
     m_windowManager->invalidateBlurCache(m_effectwindow,
                                          static_cast<uint>(BlurCacheInvalidationFlag::REGION),
@@ -476,6 +483,16 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
 }
 
 KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
+    // An explicit per-window radius override is authoritative: it bypasses the
+    // plasma-surface / window-provided-radius handling below (the user asked
+    // for this exact radius). Fullscreen/maximized windows stay square.
+    if (m_hasRadiusOverride) {
+        if (m_isFullScreen || m_maximizedState == MaximizedState::Complete) {
+            return KWin::BorderRadius();
+        }
+        return KWin::BorderRadius(m_overrideRadius);
+    }
+
     // always respect window provided radius
     // (although this seems to only ever be set by Breeze's
     // "Round bottom corners of windows with no borders"

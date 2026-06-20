@@ -63,7 +63,12 @@ private:
     bool m_blurDocks{false};
     qreal m_userBorderRadius{0.0};
 
-    // if force blurred, contains the blurred region
+    // window-specific corner radius override; authoritative when set
+    // (re-evaluated in reconfigure() from WindowManager::overrideFor())
+    bool m_hasRadiusOverride{false};
+    qreal m_overrideRadius{0.0};
+
+    // if force blurred, contain content/frame of the blur region
     std::optional<KWin::RegionF> m_forceBlurContent{};
     std::optional<KWin::RegionF> m_forceBlurFrame{};
 

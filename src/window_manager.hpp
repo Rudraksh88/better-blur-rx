@@ -13,12 +13,14 @@
 #endif
 
 #include <QList>
+#include <QMatrix4x4>
 #include <QObject>
 #include <QRegularExpression>
 #include <QString>
 
 #include <memory>
 #include <chrono>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -28,6 +30,27 @@ namespace KWin {
 
 namespace BBDX {
 class BlurEffect;
+
+/**
+ * A single window-specific override entry.
+ *
+ * Holds the parsed class matcher (exact / regex / $blank, same convention as
+ * the force-blur window classes) and the optionally overridden parameters.
+ *
+ * Brightness/saturation/contrast are stored relative to 1.0 (i.e. already
+ * divided by 100) so they can be fed straight into BBDX::colorTransformMatrix.
+ */
+struct WindowOverride {
+    QString className{};
+    bool isRegex{false};
+    bool isBlank{false};
+    QRegularExpression regex{};
+
+    std::optional<qreal> cornerRadius{};
+    std::optional<qreal> brightness{};
+    std::optional<qreal> saturation{};
+    std::optional<qreal> contrast{};
+};
 
 class WindowManager : public QObject {
     Q_OBJECT
@@ -61,9 +84,19 @@ private:
     // user configured border radius
     qreal m_userBorderRadius{0.0};
 
+    // global color params (relative to 1.0), used to fill in
+    // inherited values for window-specific overrides
+    qreal m_brightness{1.0};
+    qreal m_saturation{1.0};
+    qreal m_contrast{1.0};
+
+    // window-specific overrides, first match wins
+    QList<WindowOverride> m_windowOverrides{};
+
     // match helpers
     bool matchesWindowClassFixed(const KWin::EffectWindow *w) const;
     bool matchesWindowClassRegex(const KWin::EffectWindow *w) const;
+    bool overrideMatchesWindow(const WindowOverride &o, const KWin::EffectWindow *w) const;
 
     /**
      * Find a managed window, nullptr if not found
@@ -100,6 +133,21 @@ public:
     bool blurDocks() const { return m_blurDocks; }
     bool blurMenus() const { return m_blurMenus; }
     qreal userBorderRadius() const { return m_userBorderRadius; }
+    qreal brightness() const { return m_brightness; }
+    qreal saturation() const { return m_saturation; }
+    qreal contrast() const { return m_contrast; }
+
+    /**
+     * Get the first matching window-specific override for w,
+     * or nullptr if none matches.
+     */
+    const WindowOverride *overrideFor(const KWin::EffectWindow *w) const;
+
+    /**
+     * Get the color transformation matrix for a window if it has a
+     * window-specific color override, or empty otherwise.
+     */
+    std::optional<QMatrix4x4> getColorMatrixOverride(const KWin::EffectWindow *w) const;
 
     /**
      * Match an EffectWindow instance in the black/white list

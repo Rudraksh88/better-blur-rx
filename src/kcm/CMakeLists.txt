@@ -2,6 +2,8 @@ set(kwin_better_blur_dx_config_SRCS
     blur_config.cpp
     blur_config.h
     blur_config.qrc
+    toggleswitch.cpp
+    toggleswitch.h
 )
 
 ki18n_wrap_ui(kwin_better_blur_dx_config_SRCS blur_config.ui)

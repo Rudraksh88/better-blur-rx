@@ -155,9 +155,106 @@ void BBDX::WindowManager::reconfigure() {
 
     m_userBorderRadius = config->cornerRadius();
 
+    m_brightness = config->brightness() / 100.0;
+    m_saturation = config->saturation() / 100.0;
+    m_contrast = config->contrast() / 100.0;
+
+    // Parse window-specific overrides.
+    // One row per line, tab separated:
+    //   <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>
+    // An empty field means "inherit" (use the global value).
+    QList<WindowOverride> windowOverrides{};
+    for (const auto &line : config->windowOverrides().split(QChar('\n'), Qt::SkipEmptyParts)) {
+        const auto fields = line.split(QChar('\t'));
+        if (fields.isEmpty()) {
+            continue;
+        }
+
+        WindowOverride o{};
+
+        const QString classField = fields.value(0);
+        if (classField.length() >= 2 && classField.startsWith(QChar('/')) && classField.endsWith(QChar('/'))) {
+            const QString pattern = classField.sliced(1, classField.length() - 2);
+            QRegularExpression regex{pattern};
+            if (!regex.isValid()) {
+                qCWarning(WINDOW_MANAGER) << BBDX::LOG_PREFIX
+                                          << "Ignoring override with malformed regex pattern:" << pattern
+                                          << "-" << regex.errorString();
+                continue;
+            }
+            regex.optimize();
+            o.isRegex = true;
+            o.regex = std::move(regex);
+        } else if (classField == QStringLiteral("$blank")) {
+            o.isBlank = true;
+        } else {
+            o.className = classField;
+        }
+
+        // helper: parse optional double field, empty -> nullopt
+        const auto parseOpt = [&fields](int idx) -> std::optional<qreal> {
+            const QString field = fields.value(idx).trimmed();
+            if (field.isEmpty()) {
+                return std::nullopt;
+            }
+            bool ok = false;
+            const qreal value = field.toDouble(&ok);
+            return ok ? std::optional<qreal>(value) : std::nullopt;
+        };
+
+        o.cornerRadius = parseOpt(1);
+        if (const auto b = parseOpt(2)) {
+            o.brightness = *b / 100.0;
+        }
+        if (const auto s = parseOpt(3)) {
+            o.saturation = *s / 100.0;
+        }
+        if (const auto c = parseOpt(4)) {
+            o.contrast = *c / 100.0;
+        }
+
+        windowOverrides.append(std::move(o));
+    }
+    m_windowOverrides = std::move(windowOverrides);
+
     for (const auto &[_, window] : m_windows) {
         window->reconfigure();
     }
+}
+
+bool BBDX::WindowManager::overrideMatchesWindow(const WindowOverride &o, const KWin::EffectWindow *w) const {
+    const QString windowClass = w->window()->resourceClass();
+    const QString windowName = w->window()->resourceName();
+
+    if (o.isBlank) {
+        return windowClass.isEmpty() || windowName.isEmpty();
+    }
+
+    if (o.isRegex) {
+        return o.regex.match(windowClass).hasMatch() || o.regex.match(windowName).hasMatch();
+    }
+
+    return o.className == windowClass || o.className == windowName;
+}
+
+const BBDX::WindowOverride *BBDX::WindowManager::overrideFor(const KWin::EffectWindow *w) const {
+    for (const auto &o : m_windowOverrides) {
+        if (overrideMatchesWindow(o, w)) {
+            return &o;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<QMatrix4x4> BBDX::WindowManager::getColorMatrixOverride(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    if (!o || (!o->brightness && !o->saturation && !o->contrast)) {
+        return std::nullopt;
+    }
+
+    return BBDX::colorTransformMatrix(o->saturation.value_or(m_saturation),
+                                      o->contrast.value_or(m_contrast),
+                                      o->brightness.value_or(m_brightness));
 }
 
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {

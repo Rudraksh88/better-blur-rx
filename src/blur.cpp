@@ -94,38 +94,8 @@ ContrastManagerInterface *BlurEffect::s_contrastManager = nullptr;
 QTimer *BlurEffect::s_contrastManagerRemoveTimer = nullptr;
 #endif
 
-static QMatrix4x4 colorTransformMatrix(qreal saturation, qreal contrast, qreal brightness)
-{
-    QMatrix4x4 saturationMatrix;
-    QMatrix4x4 contrastMatrix;
-    QMatrix4x4 brightnessMatrix;
-
-    if (!qFuzzyCompare(saturation, 1.0)) {
-        const qreal rval = (1.0 - saturation) * 0.2126;
-        const qreal gval = (1.0 - saturation) * 0.7152;
-        const qreal bval = (1.0 - saturation) * 0.0722;
-
-        saturationMatrix = QMatrix4x4(rval + saturation, rval, rval, 0.0,
-                                      gval, gval + saturation, gval, 0.0,
-                                      bval, bval, bval + saturation, 0.0,
-                                      0.0, 0.0, 0.0, 1.0);
-    }
-
-    if (!qFuzzyCompare(contrast, 1.0)) {
-        const float transl = (1.0 - contrast) / 2.0;
-
-        contrastMatrix = QMatrix4x4(contrast, 0.0, 0.0, 0.0,
-                                    0.0, contrast, 0.0, 0.0,
-                                    0.0, 0.0, contrast, 0.0,
-                                    transl, transl, transl, 1.0);
-    }
-
-    if (!qFuzzyCompare(brightness, 1.0)) {
-        brightnessMatrix.scale(brightness, brightness, brightness);
-    }
-
-    return contrastMatrix * saturationMatrix * brightnessMatrix;
-}
+// colorTransformMatrix now lives in utils.h (BBDX::colorTransformMatrix) so it
+// can be shared with the per-window color override path in window_manager.cpp.
 
 BlurEffect::BlurEffect()
 {
@@ -1233,10 +1203,16 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         ShaderManager::instance()->popShader();
     }
 
+    // A per-window color override (brightness/saturation/contrast) takes
+    // priority over the global matrix. On >= 6.6.90 the legacy per-window
+    // data.colorMatrix path is compiled out, so this is the only per-window
+    // color hook.
+    const std::optional<QMatrix4x4> colorMatrixOverride = m_windowManager->getColorMatrixOverride(w);
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
-    const QMatrix4x4 &colorMatrix = blurInfo.colorMatrix ? *blurInfo.colorMatrix : m_colorMatrix;
+    const QMatrix4x4 colorMatrix = colorMatrixOverride ? *colorMatrixOverride
+        : (blurInfo.colorMatrix ? *blurInfo.colorMatrix : m_colorMatrix);
 #else
-    const QMatrix4x4 &colorMatrix = m_colorMatrix;
+    const QMatrix4x4 colorMatrix = colorMatrixOverride ? *colorMatrixOverride : m_colorMatrix;
 #endif
     const float modulation = opacity * opacity;
 

@@ -7,13 +7,54 @@
 
 #include <epoxy/gl.h>
 
+#include <QMatrix4x4>
 #include <QSize>
 #include <QString>
+#include <QtNumeric>
 
 namespace BBDX
 {
 
 static const char LOG_PREFIX[]{"better_blur_dx:"};
+
+/**
+ * Build the brightness/contrast/saturation color transformation matrix.
+ *
+ * Values are expected to be relative to 1.0 (i.e. 1.0 = neutral). Shared by
+ * the global blur color path and the per-window color overrides.
+ */
+inline QMatrix4x4 colorTransformMatrix(qreal saturation, qreal contrast, qreal brightness)
+{
+    QMatrix4x4 saturationMatrix;
+    QMatrix4x4 contrastMatrix;
+    QMatrix4x4 brightnessMatrix;
+
+    if (!qFuzzyCompare(saturation, 1.0)) {
+        const qreal rval = (1.0 - saturation) * 0.2126;
+        const qreal gval = (1.0 - saturation) * 0.7152;
+        const qreal bval = (1.0 - saturation) * 0.0722;
+
+        saturationMatrix = QMatrix4x4(rval + saturation, rval, rval, 0.0,
+                                      gval, gval + saturation, gval, 0.0,
+                                      bval, bval, bval + saturation, 0.0,
+                                      0.0, 0.0, 0.0, 1.0);
+    }
+
+    if (!qFuzzyCompare(contrast, 1.0)) {
+        const float transl = (1.0 - contrast) / 2.0;
+
+        contrastMatrix = QMatrix4x4(contrast, 0.0, 0.0, 0.0,
+                                    0.0, contrast, 0.0, 0.0,
+                                    0.0, 0.0, contrast, 0.0,
+                                    transl, transl, transl, 1.0);
+    }
+
+    if (!qFuzzyCompare(brightness, 1.0)) {
+        brightnessMatrix.scale(brightness, brightness, brightness);
+    }
+
+    return contrastMatrix * saturationMatrix * brightnessMatrix;
+}
 
 /**
  * Get texture size for offscreen framebuffer allocation during BlurEffect::blur()
