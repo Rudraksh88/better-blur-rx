@@ -8,6 +8,7 @@ set(better_blur_dx_SOURCES
     refraction_pass.cpp
     rounded_corners_pass.cpp
     texture_comparer.cpp
+    utils.cpp
     window.cpp
     window_manager.cpp
 )
