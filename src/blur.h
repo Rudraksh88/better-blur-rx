@@ -48,7 +48,7 @@ class ContrastManagerInterface;
 namespace BBDX {
 using namespace KWin;
 
-class BlurCacheLRU;
+class BlurCacheEntry;
 
 struct BlurRenderData
 {
@@ -57,7 +57,7 @@ struct BlurRenderData
     std::vector<std::unique_ptr<GLTexture>> textures;
     std::vector<std::unique_ptr<GLFramebuffer>> framebuffers;
 
-    BBDX::BlurCacheLRU cache;
+    std::unique_ptr<BBDX::BlurCacheEntry> cache;
 };
 
 struct BlurEffectData
@@ -241,7 +241,7 @@ private:
 
     std::unique_ptr<BBDX::WindowManager> m_windowManager{};
     friend void BBDX::WindowManager::triggerBlurRegionUpdate(KWin::EffectWindow *w) const;
-    friend void BBDX::WindowManager::invalidateBlurCache(KWin::EffectWindow *w, QStringView reason) const;
+    friend void BBDX::WindowManager::invalidateBlurCache(KWin::EffectWindow *w, const char *reason) const;
     friend void BBDX::WindowManager::flushWindowCaches(BBDX::Window *window) const;
     std::unique_ptr<BBDX::BlurCache> m_blurCache{};
     friend void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &data) const;

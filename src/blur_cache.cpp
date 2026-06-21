@@ -50,10 +50,18 @@ static inline void updateBlitFramebuffer(const KWin::RenderTarget &renderTarget,
 }
 
 std::unique_ptr<BBDX::BlurCacheEntry> BBDX::BlurCacheEntry::create(const KWin::Rect &scaledBackgroundRect,
-                                                                   const KWin::GLFramebuffer *dirtyBlitFramebuffer) {
-    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "New BlurCacheEntry with size:" << scaledBackgroundRect;
-
+                                                                   const KWin::GLFramebuffer *dirtyBlitFramebuffer,
+                                                                   const KWin::EffectWindow *window) {
     std::unique_ptr<BlurCacheEntry> entry{new BlurCacheEntry()};
+
+    if (window) {
+        entry->m_windowClass = window->windowClass();
+        entry->m_windowPID = window->pid();
+    }
+
+    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Creating BlurCacheEntry:" << entry->m_windowClass << "\n"
+                                            << "PID:" << entry->m_windowPID << "\n"
+                                            << "Size:" << scaledBackgroundRect;
 
     // allocate new cached texture + framebuffer for the blurred texture
     glClearColor(0, 0, 0, 0);
@@ -91,11 +99,13 @@ void BBDX::BlurCacheEntry::flush() {
 }
 
 
-void BBDX::BlurCacheEntry::abortFlush(const char* msg) {
+void BBDX::BlurCacheEntry::abortFlush(const char *msg) {
     if (m_isFlushing) {
         m_isFlushing = false;
         if (msg) {
-            qCDebug(BLUR_CACHE) << "Aborted flush:" << msg;
+            qCDebug(BLUR_CACHE) << "Aborted flush:" << m_windowClass << "\n"
+                                << "PID:" << m_windowPID << "\n"
+                                << "Reason:" << msg;
         }
     }
 }
@@ -108,52 +118,15 @@ void BBDX::BlurCacheEntry::flushed() {
     }
 }
 
-BBDX::BlurCacheEntry* BBDX::BlurCacheLRU::get() {
-    return m_entry.get();
-}
-
-void BBDX::BlurCacheLRU::add(std::unique_ptr<BlurCacheEntry> entry) {
-    if (m_entry) {
-        qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX
-                            << "Replacing BlurCacheEntry:" << m_windowClass << "\n"
-                            << "PID:" << m_windowPID << "\n";
-    } else {
-        qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX
-                            << "Adding BlurCacheEntry:" << m_windowClass << "\n"
-                            << "PID:" << m_windowPID << "\n";
+void BBDX::BlurCacheEntry::invalidate(const char* msg) {
+    if (!m_invalidated) {
+        m_invalidated = true;
+        if (msg) {
+            qCDebug(BLUR_CACHE) << "Invalidated cache:" << m_windowClass << "\n"
+                                << "PID:" << m_windowPID << "\n"
+                                << "Reason:" << msg;
+        }
     }
-
-    m_entry = std::move(entry);
-}
-
-void BBDX::BlurCacheLRU::invalidate(QStringView reason, bool skipGlContext) {
-    if (!m_entry) {
-        return;
-    }
-
-    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX
-                        << "Invalidating cache:" << m_windowClass << "\n"
-                        << "PID:" << m_windowPID << "\n"
-                        << "Reason:" << reason;
-
-    // invalidate can be called from various events outside
-    // the window paint pipeline so we need to explicitly
-    // make the context current to correctly drop framebuffers/textures
-    if (!skipGlContext) {
-        KWin::effects->makeOpenGLContextCurrent();
-    }
-
-    m_entry.reset();
-}
-
-void BBDX::BlurCacheLRU::setWindow(KWin::EffectWindow* w) {
-    if (m_window) {
-        return;
-    }
-
-    m_window = w;
-    m_windowClass = m_window->windowClass();
-    m_windowPID = m_window->pid();
 }
 
 std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effect) {
@@ -182,7 +155,7 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
                                        KWin::GLFramebuffer *blitFramebuffer,
                                        const KWin::Rect *backgroundRect,
                                        const KWin::Rect *scaledBackgroundRect,
-                                       BlurCacheLRU &cache) {
+                                       std::unique_ptr<BlurCacheEntry> &cache) {
     m_paintData = {
         .renderTarget = renderTarget,
         .viewport = viewport,
@@ -195,40 +168,36 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
     };
 
     // create new cache entry if needed
-    if (!cache.get()) {
-        auto newCacheEntry = BBDX::BlurCacheEntry::create(*m_paintData.scaledBackgroundRect,
-                                                          m_paintData.blitFramebuffer);
+    if (!cache || cache->invalidated()) {
+        cache = BBDX::BlurCacheEntry::create(*m_paintData.scaledBackgroundRect,
+                                             m_paintData.blitFramebuffer,
+                                             m_paintData.window);
         // XXX: ensure this is safe
         // and BlurEffect::blur() bails
         // if this fails or we get nullptr derefs when trying to
         // access blit/target framebuffers
-        if (!newCacheEntry) {
+        if (!cache) {
             qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Creating BlurCacheEntry failed";
             return;
         }
 
         // flush the new entry immediately
-        newCacheEntry->flush();
-
-        cache.add(std::move(newCacheEntry));
+        cache->flush();
     }
 
-    // by now we are guaranteed to have an entry
-    auto cacheEntry = cache.get();
-
     // the cache entry needs to stay in sync
-    cacheEntry->setBackgroundRect(*backgroundRect);
-    cacheEntry->accumulateDirtyRegion(*dirtyRegion);
+    cache->setBackgroundRect(*backgroundRect);
+    cache->accumulateDirtyRegion(*dirtyRegion);
 
     // still not sure if dirtyRegion can even end up empty
     // but if it is a flush would always end up taking the cache anyway
     // (no changes to compare). this at least skips some compute
-    if (dirtyRegion->isEmpty() && cacheEntry->isFlushing()) {
-        cacheEntry->abortFlush("Empty dirtyRegion");
+    if (dirtyRegion->isEmpty() && cache->isFlushing()) {
+        cache->abortFlush("Empty dirtyRegion");
     }
 
     // when flushing we need the updated blit
-    if (cacheEntry->isFlushing()) {
+    if (cache->isFlushing()) {
         updateBlitFramebuffer(*m_paintData.renderTarget,
                               *m_paintData.viewport,
                               m_paintData.blitFramebuffer,
@@ -322,8 +291,8 @@ void BBDX::BlurCache::drawCached(const KWin::RenderViewport &viewport, BBDX::Blu
     KWin::ShaderManager::instance()->popShader();
 }
 
-void BBDX::BlurCache::drawToCache(BBDX::BlurCacheLRU &cache, KWin::GLVertexBuffer *vbo) const {
-    auto cachedFramebuffer = cache.get()->cachedFramebuffer();
+void BBDX::BlurCache::drawToCache(BBDX::BlurCacheEntry *cache, KWin::GLVertexBuffer *vbo) const {
+    auto cachedFramebuffer = cache->cachedFramebuffer();
     KWin::GLFramebuffer::pushFramebuffer(cachedFramebuffer);
     BBDX::setGLScissor(*m_paintData.dirtyRegion, *m_paintData.backgroundRect);
     vbo->draw(GL_TRIANGLES, vboStartCache(), vboCountCache());

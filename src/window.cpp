@@ -222,7 +222,7 @@ void BBDX::Window::triggerBlurRegionUpdate() const {
     m_windowManager->triggerBlurRegionUpdate(m_effectwindow);
 }
 
-void BBDX::Window::invalidateBlurCache(QStringView reason) const {
+void BBDX::Window::invalidateBlurCache(const char *reason) const {
     m_windowManager->invalidateBlurCache(m_effectwindow, reason);
 }
 
@@ -355,7 +355,7 @@ void BBDX::Window::reconfigure() {
     m_userBorderRadius = m_windowManager->userBorderRadius();
 
     slotWindowOpacityChanged(effectwindow(), 0.0, effectwindow()->opacity());
-    invalidateBlurCache(QStringLiteral("Reconfigured window"));
+    invalidateBlurCache("Reconfigured window");
     updateForceBlurRegion();
 }
 

@@ -888,9 +888,6 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     BlurEffectData &blurInfo = it->second;
     BlurRenderData &renderInfo = blurInfo.render[m_currentView];
 
-    // BBDX:
-    renderInfo.cache.setWindow(w);
-
     if (!shouldBlur(w, mask, data)) {
         return;
     }
@@ -999,7 +996,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         renderInfo.framebuffers.clear();
         renderInfo.textures.clear();
         // BBDX:
-        renderInfo.cache.invalidate(QStringLiteral("New framebuffers required"), true);
+        renderInfo.cache.reset();
 
         glClearColor(0, 0, 0, 0);
         for (size_t i = 0; i <= m_iterationCount; ++i) {
@@ -1314,7 +1311,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 #endif
 
         // BBDX:
-        m_blurCache->drawToCache(renderInfo.cache, vbo);
+        m_blurCache->drawToCache(renderInfo.cache.get(), vbo);
 
 #if BETTERBLUR_NOT_NEEDED
         if (modulation < 1.0) {
@@ -1355,7 +1352,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             noiseTexture->bind();
 
             // BBDX:
-            m_blurCache->drawToCache(renderInfo.cache, vbo);
+            m_blurCache->drawToCache(renderInfo.cache.get(), vbo);
 
             ShaderManager::instance()->popShader();
         }

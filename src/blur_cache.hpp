@@ -62,6 +62,22 @@ class BlurCacheEntry {
     bool m_isFlushing{true};
 
     /**
+     * Marks this cache entry invalid (purging it the next paint cycle)
+     *
+     * This should be used when handling Qt eventloop stuff as the GL context
+     * might not be current there.
+     *
+     * If you know the GL context is current feel free to just .reset() the unique_ptr
+     */
+    bool m_invalidated{false};
+
+    /**
+     * Some metadata to print on invalidation
+     */
+    QString m_windowClass{"unknown unknown"};
+    pid_t m_windowPID{-1};
+
+    /**
      * Use create()
      */
     BlurCacheEntry() = default;
@@ -72,7 +88,14 @@ public:
      * with the size of scaledBackgroundRect and format of dirtyBlitFramebuffer
      */
     static std::unique_ptr<BlurCacheEntry> create(const KWin::Rect &scaledBackgroundRect,
-                                                  const KWin::GLFramebuffer *dirtyBlitFramebuffer);
+                                                  const KWin::GLFramebuffer *dirtyBlitFramebuffer,
+                                                  const KWin::EffectWindow *window);
+
+    /**
+     * Disallow copying GL resources
+     */
+    BlurCacheEntry(BlurCacheEntry &other) = delete;
+    BlurCacheEntry& operator=(BlurCacheEntry &other) = delete;
 
     /**
      * Add dirtyRegion to accumulatedDirtyRegion
@@ -85,8 +108,13 @@ public:
      * While flushing abort with abortFlush() or complete with flushed()
      */
     void flush();
-    void abortFlush(const char* msg = nullptr);
+    void abortFlush(const char *msg = nullptr);
     void flushed();
+
+    /**
+     * Invalidate cache entry
+     */
+    void invalidate(const char *msg = nullptr);
 
     /**
      * Setters
@@ -101,60 +129,7 @@ public:
     const KWin::Region& accumulatedDirtyRegion() const { return m_accumulatedDirtyRegion; }
     const std::chrono::steady_clock::time_point& lastFlush() const { return m_lastFlush; }
     bool isFlushing() const { return m_isFlushing; }
-};
-
-/**
- * Least Recently Used container
- * for BlurCacheEntry
- */
-class BlurCacheLRU {
-private:
-    std::unique_ptr<BlurCacheEntry> m_entry{};
-    KWin::EffectWindow* m_window{nullptr};
-    QString m_windowClass{"unknown unknown"};
-    pid_t m_windowPID{-1};
-
-public:
-    /**
-     * Invalidate cache on destruction
-     * (for stats and explicit OpenGL context)
-     */
-    ~BlurCacheLRU() {
-        invalidate(QStringLiteral("BlurCacheLRU destroyed"));
-    }
-
-    /**
-     * Return a pointer to the contained entry or nullptr
-     * if none exists
-     */
-    BlurCacheEntry* get();
-
-    /**
-     * Add an entry to the cache, potentially removing the already existing entry.
-     * The added entry is assumed to be valid by the time drawCached() is called
-     * and will thus implicitly be selected.
-     */
-    void add(std::unique_ptr<BlurCacheEntry> entry);
-
-    /**
-     * Remove the cache entry and print sats to debug log
-     *
-     * By default this will make the OpenGL context current
-     * before clearing the entry as this funtion may be called at any time.
-     * Set skipGlContext in cases where the context is already current.
-     */
-    void invalidate(QStringView reason, bool skipGlContext = false);
-
-    /**
-     * Set window using this cache for logging purposes
-     * Locked once set
-     */
-    void setWindow(KWin::EffectWindow* w);
-
-    /**
-     * Get pointer to the window if set
-     */
-    KWin::EffectWindow* window() const { return m_window; }
+    bool invalidated() const { return m_invalidated; }
 };
 
 struct BlurCachePaintData {
@@ -196,6 +171,8 @@ public:
 
     /**
      * Prepare the cache for this paint
+     * and create an entry in the given cache unique_ptr if
+     * one doesn't exist already
      */
     void preparePaintData(const KWin::RenderTarget *renderTarget,
                           const KWin::RenderViewport *viewport,
@@ -205,7 +182,7 @@ public:
                           KWin::GLFramebuffer *blitFramebuffer,
                           const KWin::Rect *backgroundRect,
                           const KWin::Rect *scaledBackgroundRect,
-                          BlurCacheLRU &cache);
+                          std::unique_ptr<BlurCacheEntry> &cache);
 
     /**
      * Injects the geometry used for the cache, in logical pixels
@@ -233,7 +210,7 @@ public:
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache
      */
-    void drawToCache(BBDX::BlurCacheLRU &cache, KWin::GLVertexBuffer *vbo) const;
+    void drawToCache(BBDX::BlurCacheEntry *cache, KWin::GLVertexBuffer *vbo) const;
 
     /**
      * Flush all window's accumulatedDirtyRegions

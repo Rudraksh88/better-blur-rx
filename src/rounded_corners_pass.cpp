@@ -93,7 +93,7 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-        blurCache->drawToCache(renderInfo.cache, vbo);
+        blurCache->drawToCache(renderInfo.cache.get(), vbo);
 
         glDisable(GL_BLEND);
 
