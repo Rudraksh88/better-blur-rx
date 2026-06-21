@@ -211,7 +211,6 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
         .backgroundRect = backgroundRect,
         .scaledBackgroundRect = scaledBackgroundRect,
         .blitFramebuffer = blitFramebuffer,
-        .glBeginConditionalRenderCalled = false,
     };
 
     // create new cache entry if needed
@@ -308,11 +307,6 @@ void BBDX::BlurCache::setupVBO(std::span<KWin::GLVertex2D> &map, size_t &vboInde
 }
 
 void BBDX::BlurCache::drawCached(const KWin::RenderViewport &viewport, BBDX::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo, const int vertexCount, const float modulation) const {
-    // end glBeginConditionalRender from prepareCache()
-    if (m_paintData.glBeginConditionalRenderCalled) {
-        glEndConditionalRender();
-    }
-
     const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
 
     KWin::ShaderManager::instance()->pushShader(m_texturePass.shader.get());

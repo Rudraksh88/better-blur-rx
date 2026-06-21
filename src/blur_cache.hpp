@@ -160,10 +160,6 @@ struct BlurCachePaintData {
     const KWin::Rect *backgroundRect;
     const KWin::Rect *scaledBackgroundRect;
     KWin::GLFramebuffer *blitFramebuffer;
-
-    // on first paint before we have a usuable cache entry
-    // we won't call glBeginConditionalRender
-    bool glBeginConditionalRenderCalled{false};
 };
 
 class BlurCache {
