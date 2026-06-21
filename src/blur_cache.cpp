@@ -87,10 +87,6 @@ void BBDX::BlurCacheEntry::accumulateDirtyRegion(const KWin::Region &dirtyRegion
     m_accumulatedDirtyRegion &= m_backgroundRect;
 }
 
-KWin::Region BBDX::BlurCacheEntry::localDirtyRegion(const KWin::Region &dirtyRegion) const {
-    return dirtyRegion.translated(-m_backgroundRect.topLeft());
-}
-
 void BBDX::BlurCacheEntry::flush() {
     m_isFlushing = true;
 }
@@ -236,8 +232,6 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
     auto cacheEntry = cache.get();
 
     // the cache entry needs to stay in sync
-    // so BlurCacheEntry::localDirtyRegion() returns
-    // correct info
     cacheEntry->setBackgroundRect(*backgroundRect);
     cacheEntry->accumulateDirtyRegion(*dirtyRegion);
 

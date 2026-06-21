@@ -82,11 +82,6 @@ public:
     void accumulateDirtyRegion(const KWin::Region &dirtyRegion);
 
     /**
-     * Helpers for mapping dirtyRegion into backgroundRect
-     */
-    KWin::Region localDirtyRegion(const KWin::Region &dirtyRegion) const;
-
-    /**
      * Mark this entry for flushing
      *
      * While flushing abort with abortFlush() or complete with flushed()
