@@ -15,8 +15,7 @@ void main(void)
 
     float f = sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius);
     float df = fwidth(f);
-    float inv_alpha = clamp(0.5 + f / df, 0.0, 1.0);
-    fragColor *= inv_alpha;
+    float alpha = clamp(0.5 - f / df, 0.0, 1.0);
 
-    gl_FragColor = fragColor;
+    gl_FragColor = fragColor * alpha;
 }

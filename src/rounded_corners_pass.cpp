@@ -60,8 +60,8 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
         QMatrix4x4 projectionMatrix;
         projectionMatrix.ortho(QRectF(0.0, 0.0, backgroundRect.width(), backgroundRect.height()));
 
-        // should contain the raw un-blurred pixels
-        const auto &read = renderInfo.framebuffers[0];
+        // we want to mask the corners of what is already cached
+        const auto &read = renderInfo.cache.get()->cachedFramebuffer();
 
         /**
          * For caching purposes we keep things in logical coordinates
@@ -90,12 +90,7 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
         BBDX::setTextureSwizzle(read->colorAttachment());
         read->colorAttachment()->bind();
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
         blurCache->drawToCache(renderInfo.cache.get(), vbo);
-
-        glDisable(GL_BLEND);
 
         KWin::ShaderManager::instance()->popShader();
 }
