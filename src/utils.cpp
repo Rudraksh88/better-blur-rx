@@ -58,9 +58,10 @@ void BBDX::clearGLScissor() {
 }
 
 QString BBDX::shaderFilePath(QString shader) {
-#if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
-    return shader;
-#else
-    return shader.insert(shader.lastIndexOf("."), "_core");
+#if KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
+    shader.insert(shader.lastIndexOf("."), "_core");
 #endif
+
+    qCDebug(BBDX_UTILS) << "Loading shader file:" << shader;
+    return shader;
 }
