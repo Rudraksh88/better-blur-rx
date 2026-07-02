@@ -86,7 +86,7 @@ using namespace KWin;
 
 static const QByteArray s_blurAtomName = QByteArrayLiteral("_KDE_NET_WM_BLUR_BEHIND_REGION");
 
-#if !defined(BETTERBLUR_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+#if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
 BlurManagerInterface *BlurEffect::s_blurManager = nullptr;
 QTimer *BlurEffect::s_blurManagerRemoveTimer = nullptr;
 
@@ -226,7 +226,7 @@ BlurEffect::BlurEffect()
         net_wm_blur_region = effects->announceSupportProperty(s_blurAtomName, this);
     }
 
-#if !defined(BETTERBLUR_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+#if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     if (!s_blurManagerRemoveTimer) {
         s_blurManagerRemoveTimer = new QTimer(QCoreApplication::instance());
         s_blurManagerRemoveTimer->setSingleShot(true);
@@ -260,7 +260,7 @@ BlurEffect::BlurEffect()
 
     connect(effects, &EffectsHandler::windowAdded, this, &BlurEffect::slotWindowAdded);
     connect(effects, &EffectsHandler::windowDeleted, this, &BlurEffect::slotWindowDeleted);
-#if defined(BETTERBLUR_X11)
+#if defined(BBDX_X11)
     connect(effects, &EffectsHandler::screenRemoved, this, &BlurEffect::slotViewRemoved);
 #else
     connect(effects, &EffectsHandler::viewRemoved, this, &BlurEffect::slotViewRemoved);
@@ -281,7 +281,7 @@ BlurEffect::BlurEffect()
 
 BlurEffect::~BlurEffect()
 {
-#if !defined(BETTERBLUR_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+#if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     // When compositing is restarted, avoid removing the manager immediately.
     if (s_blurManager) {
         s_blurManagerRemoveTimer->start(1000);
@@ -505,7 +505,7 @@ void BlurEffect::slotWindowAdded(EffectWindow *w)
                 updateBlurRegion(w);
             }
         });
-#if !defined(BETTERBLUR_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+#if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
         windowContrastChangedConnections[w] = connect(surf, &SurfaceInterface::contrastChanged, this, [this, w]() {
             if (w) {
                 updateBlurRegion(w);
@@ -536,7 +536,7 @@ void BlurEffect::slotWindowDeleted(EffectWindow *w)
         disconnect(*it);
         windowBlurChangedConnections.erase(it);
     }
-#if !defined(BETTERBLUR_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
+#if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     if (auto it = windowContrastChangedConnections.find(w); it != windowContrastChangedConnections.end()) {
         disconnect(*it);
         windowContrastChangedConnections.erase(it);
@@ -692,7 +692,7 @@ void BlurEffect::prePaintScreen(ScreenPrePaintData &data)
     m_paintedDeviceArea = Region();
     m_currentDeviceBlur = Region();
 #endif // KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 4)
-#if defined(BETTERBLUR_X11)
+#if defined(BBDX_X11)
     m_currentView = data.screen;
 #else
     m_currentView = data.view;

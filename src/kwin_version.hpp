@@ -20,7 +20,7 @@
 // KWin-X11 is essentially locked at its 6.5 API
 // and we don't support older versions.
 // So for simplicity assume that's its version.
-#if defined(BETTERBLUR_X11)
+#if defined(BBDX_X11)
 # define KWIN_VERSION KWIN_VERSION_CODE(6, 5, 0)
 #else
 # define KWIN_VERSION KWIN_VERSION_CODE(KWIN_VERSION_MAJOR, KWIN_VERSION_MINOR, KWIN_VERSION_PATCH)

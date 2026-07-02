@@ -27,7 +27,7 @@ Currently supported versions: **6.5**, **6.6**, **6.7**
 
 ### X11 Support
 While building the effect is supported for both X11 and Wayland, X11 is more or less deprecated and not tested much.
-Thus the X11 version of the effect needs to be explicitly built using the `-DBETTERBLUR_X11=ON` `cmake` option.
+Thus the X11 version of the effect needs to be explicitly built using the `-DBBDX_X11=ON` `cmake` option.
 
 We'll see how feasible maintaining the X11 version is for future Plasma releases as it seems like
 KWin X11 doesn't see any API changes since version 6.5 meaning the Wayland and X11 will keep drifting apart.
@@ -213,7 +213,7 @@ sudo make install
 ```
 
 By default this will build the effect for the regular (Wayland) KWin.
-To build a version for KWin X11 add `-DBETTERBLUR_X11=ON` to the `cmake` invocation.
+To build a version for KWin X11 add `-DBBDX_X11=ON` to the `cmake` invocation.
 
 <details>
   <summary>Building on Fedora Kinoite</summary>
