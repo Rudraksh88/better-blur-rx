@@ -170,9 +170,9 @@ private:
     BlurCachePaintData m_paintData{};
 
     /**
-     * Wallpaper buffers for stencil mode
+     * Wallpaper buffers for wallpaper mode
      */
-    std::unordered_map<KWin::RenderView *, WallpaperData> m_wallpapers;
+    std::unordered_map<KWin::RenderView *, WallpaperData> m_wallpapers{};
 
     /**
      * use create()

@@ -380,6 +380,15 @@ void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &dat
 }
 
 BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
+#if defined(BBDX_X11)
+    /**
+     * Wayland only feature - mainly because of this function
+     *
+     * Considering X11 is dead in the next (6.8) Plasma release
+     * I won't bother implementing it there.
+     */
+    return nullptr;
+#else
     // naughty const_cast
     KWin::RenderView *view = const_cast<KWin::RenderView *>(m_paintData.view);
     KWin::RenderTarget *renderTarget = const_cast<KWin::RenderTarget *>(m_paintData.renderTarget);
@@ -439,6 +448,7 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     GLFramebuffer::popFramebuffer();
 
     return &wallpaper;
+#endif
 }
 
 void BBDX::BlurCache::dropWallpaper(KWin::RenderView *view) {

@@ -37,21 +37,19 @@ BlurEffectConfig::BlurEffectConfig(QObject *parent, const KPluginMetaData &data)
 
     setupContextualHelp();
     setupSpinboxSliderSync();
+    setupConstraints();
 
     connect(ui.kcfg_RefractionMode, &QComboBox::currentIndexChanged, this, &BlurEffectConfig::slotRefractionModeChanged);
     slotRefractionModeChanged(ui.kcfg_RefractionMode->currentIndex());
 }
 
-BlurEffectConfig::~BlurEffectConfig()
-{
-}
+BlurEffectConfig::~BlurEffectConfig() {}
 
 void BlurEffectConfig::setContextualHelp(
     KContextualHelpButton *const contextualHelpButton,
     const QString &text,
     QWidget *const heightHintWidget
-)
-{
+) {
     contextualHelpButton->setContextualHelpText(text);
     if (heightHintWidget) {
         const auto ownHeightHint = contextualHelpButton->sizeHint().height();
@@ -62,8 +60,7 @@ void BlurEffectConfig::setContextualHelp(
     }
 }
 
-void BlurEffectConfig::setupContextualHelp()
-{
+void BlurEffectConfig::setupContextualHelp() {
     setContextualHelp(
         ui.windowClassesContextualHelp,
         QStringLiteral("<p>Specify one window class pattern per line.</p>") +
@@ -82,8 +79,7 @@ void BlurEffectConfig::setupContextualHelp()
     );
 }
 
-void BlurEffectConfig::setupSpinboxSliderSync()
-{
+void BlurEffectConfig::setupSpinboxSliderSync() {
     // Blur Strength
     ui.spinboxBlurStrength->setValue(ui.kcfg_BlurStrength->value());
     connect(ui.kcfg_BlurStrength, &QSlider::valueChanged, this, [this](int value) {
@@ -120,6 +116,15 @@ void BlurEffectConfig::setupSpinboxSliderSync()
             if (ui.kcfg_Contrast->value() != value) ui.kcfg_Contrast->setValue(value); });
 }
 
+void BlurEffectConfig::setupConstraints() {
+#if defined(BBDX_X11)
+    /**
+     * X11 only has one mode available
+     */
+    ui.kcfg_BlitMode->setEnabled(false);
+#endif
+}
+
 void BlurEffectConfig::slotRefractionModeChanged(int index) {
     // 1 = concave
     // TODO: make this an enum
@@ -148,8 +153,7 @@ void BlurEffectConfig::slotRefractionModeChanged(int index) {
     }
 }
 
-void BlurEffectConfig::save()
-{
+void BlurEffectConfig::save() {
     KCModule::save();
 
     OrgKdeKwinEffectsInterface interface(QStringLiteral("org.kde.KWin"),

@@ -19,6 +19,7 @@ target_link_libraries(kwin_better_blur_dx_config
 )
 
 if(BBDX_X11)
+    target_compile_definitions(kwin_better_blur_dx_config PRIVATE BBDX_X11)
     install(TARGETS kwin_better_blur_dx_config DESTINATION ${KDE_INSTALL_PLUGINDIR}/kwin-x11/effects/configs)
 else()
     install(TARGETS kwin_better_blur_dx_config DESTINATION ${KDE_INSTALL_PLUGINDIR}/kwin/effects/configs)
