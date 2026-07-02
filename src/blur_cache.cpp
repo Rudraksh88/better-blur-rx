@@ -350,6 +350,9 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
 
     // for now only cache for the purpose of reusing
     // framebuffer + texture if they still fit
+    //
+    // TODO: when the DBUS from plasmashell is set up
+    //       this can be cached and dropped on change only
     WallpaperData &wallpaper = m_wallpapers[view];
 
     KWin::EffectWindow *desktop{nullptr};
