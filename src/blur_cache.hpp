@@ -202,18 +202,9 @@ public:
                           std::unique_ptr<BlurCacheEntry> &cache);
 
     /**
-     * Injects the geometry used for the cache, in logical pixels
-     * but scaled to what would be drawn on the device.
-     *
-     * Adds BlurCache::addedVertices() vertices
-     */
-    void setupVBO(std::span<KWin::GLVertex2D> &map, size_t &vboIndex) const;
-    uint addedVertices() const { return 6; }
-
-    /**
      * Start indices and vert count of stuff in the VBO
      */
-    uint vboStartCache() const { return 6; }
+    uint vboStartCache() const { return 0; }
     uint vboCountCache() const { return 6; }
     uint vboStartScreen() const { return vboStartCache() + vboCountCache(); }
 
