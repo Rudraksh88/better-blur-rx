@@ -230,7 +230,7 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
             "org.kde.PlasmaShell",
             "wallpaperChanged",
             blurCache.get(),
-            SLOT(BlurCache::slotWallpaperChanged(uint))
+            SLOT(BBDX::BlurCache::slotWallpaperChanged(uint))
         )){
             qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "org.kde.PlasmaShell.wallpaperChanged connection ready";
             blurCache->m_sessionBus = std::move(sessionBus);
