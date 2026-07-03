@@ -7,7 +7,7 @@
 #include <effect/effect.h>
 #include <epoxy/gl.h>
 
-#include <QDBusConnection>
+#include <QDBusInterface>
 #include <QObject>
 
 #include <effect/effectwindow.h>
@@ -207,9 +207,9 @@ private:
     std::unordered_map<KWin::RenderView *, WallpaperData> m_wallpapers{};
 
     /**
-     * Session bus connection
+     * Session bus connection to org.kde.plasmashell /PlasmaShell
      */
-    std::unique_ptr<QDBusConnection> m_sessionBus{};
+    std::unique_ptr<QDBusInterface> m_plasmashellInterface{};
 
     /**
      * use create()

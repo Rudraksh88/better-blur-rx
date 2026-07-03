@@ -7,6 +7,7 @@
 #include "utils.h"
 
 #include <epoxy/gl.h>
+#include <qloggingcategory.h>
 #include <scene/scene.h>
 #include <sys/types.h>
 
@@ -25,6 +26,7 @@
 
 #include <QLoggingCategory>
 #include <QVector2D>
+#include <QDBusInterface>
 #include <QDBusConnection>
 #include <QtNumeric>
 
@@ -219,24 +221,24 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_texturePass.modulationLocation = blurCache->m_texturePass.shader->uniformLocation("modulation");
     }
 
-    auto sessionBus = std::make_unique<QDBusConnection>(QDBusConnection::sessionBus());
-    if (!sessionBus->isConnected()) {
-        // not fatal but we won't be able to detect wallpaper changes
-        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Could not connect to D-Bus session bus";
+    auto plasmashellInterface = std::make_unique<QDBusInterface>(
+        "org.kde.plasmashell",
+        "/PlasmaShell",
+        "org.kde.PlasmaShell",
+        QDBusConnection::sessionBus()
+    );
+
+    if (plasmashellInterface->isValid()) {
+        connect(plasmashellInterface.get(),
+                SIGNAL(wallpaperChanged(uint)),
+                blurCache.get(),
+                SLOT(slotWallpaperChanged(uint)));
+
+        blurCache->m_plasmashellInterface = std::move(plasmashellInterface);
     } else {
-        if (sessionBus->connect(
-            "org.kde.plasmashell",
-            "/PlasmaShell",
-            "org.kde.PlasmaShell",
-            "wallpaperChanged",
-            blurCache.get(),
-            SLOT(BBDX::BlurCache::slotWallpaperChanged(uint))
-        )){
-            qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "org.kde.PlasmaShell.wallpaperChanged connection ready";
-            blurCache->m_sessionBus = std::move(sessionBus);
-        } else {
-            qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "org.kde.PlasmaShell.wallpaperChanged connection failed";
-        }
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX
+                              << "org.kde.PlasmaShell D-Bus connection failed:\n"
+                              << plasmashellInterface->lastError().message();
     }
 
     return blurCache;
