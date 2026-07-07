@@ -26,8 +26,6 @@
 
 #include <QLoggingCategory>
 #include <QVector2D>
-#include <QDBusInterface>
-#include <QDBusConnection>
 #include <QtNumeric>
 
 #include <chrono>
@@ -188,32 +186,6 @@ void BBDX::BlurCacheEntry::invalidate(const char* msg) {
     }
 }
 
-
-void BBDX::BlurCache::slotDbusRegisteredPlasmashell() {
-    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "PlasmaShell registered on D-Bus - setting up connection";
-
-    if (!QDBusConnection::sessionBus().connect(
-        "org.kde.plasmashell",
-        "/PlasmaShell",
-        "org.kde.PlasmaShell",
-        "wallpaperChanged",
-        this,
-        SLOT(slotWallpaperChanged(uint))
-    )) {
-        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "D-Bus connection to org.kde.PlasmaShell.wallpaperChanged failed";
-    }
-}
-
-void BBDX::BlurCache::slotWallpaperChanged(uint screenNum) {
-    return;
-    Q_UNUSED(screenNum);
-
-    // now flush and implicitly fetch new wallpaper
-    // 5 seconds should hopefully be enough time
-    // for the wallpaper transition
-    m_effect->windowManager()->flushAllWindowCachesFor(std::chrono::milliseconds{5000});
-}
-
 void BBDX::BlurCache::slotWallpaperDamaged(KWin::Window *window) {
     Q_UNUSED(window);
 
@@ -239,18 +211,6 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_texturePass.mvpMatrixLocation = blurCache->m_texturePass.shader->uniformLocation("modelViewProjectionMatrix");
         blurCache->m_texturePass.modulationLocation = blurCache->m_texturePass.shader->uniformLocation("modulation");
     }
-
-    blurCache->m_dbusServiceWatcher = std::make_unique<QDBusServiceWatcher>(
-        "org.kde.plasmashell",
-        QDBusConnection::sessionBus(),
-        QDBusServiceWatcher::WatchForRegistration
-    );
-
-    connect(blurCache->m_dbusServiceWatcher.get(),
-            &QDBusServiceWatcher::serviceRegistered,
-            blurCache.get(),
-            &BlurCache::slotDbusRegisteredPlasmashell
-    );
 
     return blurCache;
 }
@@ -452,12 +412,6 @@ void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &dat
             switch (m_effect->blitMode()) {
                 case BlitMode::WALLPAPER:
                     // never flush automatically in wallpaper mode
-                    //
-                    // TODO: we should still flush on some events
-                    // like wallpaper changing
-                    // 
-                    // PlasmaShell exposes org.kde.PlasmaShell.wallpaperChanged(uint screenNum)
-                    // via DBUS which might work as a trigger
                     break;
 
                 default:
@@ -494,9 +448,6 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
 
     // for now only cache for the purpose of reusing
     // framebuffer + texture if they still fit
-    //
-    // TODO: when the DBUS from plasmashell is set up
-    //       this can be cached and dropped on change only
     WallpaperData &wallpaper = m_wallpapers[view];
 
     KWin::EffectWindow *desktop{nullptr};
