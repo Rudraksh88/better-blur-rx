@@ -182,6 +182,9 @@ struct WallpaperData {
     KWin::RectF geometry;
     std::unique_ptr<KWin::GLFramebuffer> framebuffer;
     std::unique_ptr<KWin::GLTexture> texture;
+
+    // connection to the underlying desktop window
+    QMetaObject::Connection connection;
 };
 
 class BlurCache : public QObject {
@@ -204,7 +207,6 @@ private:
      * Wallpaper buffers for wallpaper mode
      */
     std::unordered_map<KWin::RenderView *, WallpaperData> m_wallpapers{};
-    std::unordered_map<KWin::RenderView *, QMetaObject::Connection> m_wallpaperConnections{};
 
     /**
      * use create()

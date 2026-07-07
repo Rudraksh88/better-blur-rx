@@ -463,10 +463,6 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
         return nullptr;
     }
 
-    m_wallpaperConnections.insert_or_assign(
-        view, connect(desktop->window(), &KWin::Window::damaged, this, &BBDX::BlurCache::slotWallpaperDamaged)
-    );
-
     wallpaper.geometry = view->logicalOutput()->geometryF();
 
     GLenum textureFormat = GL_RGBA8;
@@ -504,6 +500,9 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     effects->drawWindow(wallpaperRenderTarget, wallpaperRenderViewport, desktop, KWin::Scene::PAINT_WINDOW_TRANSFORMED, KWin::Region::infinite(), data);
     GLFramebuffer::popFramebuffer();
 
+    // connection for tracking damage
+    wallpaper.connection = connect(desktop->window(), &KWin::Window::damaged, this, &BBDX::BlurCache::slotWallpaperDamaged);
+
     return &wallpaper;
 #endif
 }
@@ -513,6 +512,9 @@ void BBDX::BlurCache::dropWallpaper(KWin::RenderView *view) {
     if (it == m_wallpapers.end()) {
         return;
     }
+
+    // cleanup
+    disconnect(it->second.connection);
 
     qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "Dropping wallpaper buffer";
 
