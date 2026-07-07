@@ -373,3 +373,17 @@ void BBDX::WindowManager::flushWindowCaches(BBDX::Window *window) const {
         }
     }
 }
+
+void BBDX::WindowManager::flushWindowCachesFor(BBDX::Window *window, std::chrono::milliseconds duration) const {
+    auto it = m_effect->m_windows.find(window->effectwindow());
+    if (it == m_effect->m_windows.end()) {
+        return;
+    }
+
+    auto &effectData = it->second;
+    for (auto &[view, renderData] : effectData.render) {
+        if (auto cacheEntry = renderData.cache.get()) {
+            cacheEntry->flushFor(duration);
+        }
+    }
+}

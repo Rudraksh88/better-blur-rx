@@ -18,6 +18,7 @@
 #include <QString>
 
 #include <memory>
+#include <chrono>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -167,6 +168,7 @@ public:
      * Flush all caches of a window
      */
     void flushWindowCaches(BBDX::Window *window) const;
+    void flushWindowCachesFor(BBDX::Window *window, std::chrono::milliseconds duration) const;
 };
 
 } // namespace KWin
