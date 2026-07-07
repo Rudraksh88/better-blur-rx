@@ -230,7 +230,7 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
         }
 
         // flush the new entry immediately
-        cache->flush();
+        cache->flush("Fresh cache entry");
     }
 
     // the cache entry needs to stay in sync
@@ -241,7 +241,7 @@ void BBDX::BlurCache::preparePaintData(const KWin::RenderTarget *renderTarget,
     // was only partially filled we always need a flush
     // to not draw uncached regions
     if (!cache->hasCachedRegion(*dirtyRegion)) {
-        cache->flush();
+        cache->flush("Incomplete cached region");
     }
 
     // dirtyRegion can end up empty in some rare cases
