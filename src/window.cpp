@@ -87,12 +87,7 @@ void BBDX::Window::slotWindowFrameGeometryChanged() {
     updateForceBlurRegion();
     refreshMaximizedState();
 
-    // To allow geometry changing animations to complete flush for 1000ms.
-    // Animations that change the window Rect size will always flush
-    // due to re-allocation the framebuffers.
-    //
-    // TODO: time should likely scale with animation duration settings
-    m_windowManager->flushWindowCachesFor(this, std::chrono::milliseconds{1000});
+    m_windowManager->flushWindowCaches(this);
 
     // Not sure if this is the best place to unset
     // this but seems to work fine for now
