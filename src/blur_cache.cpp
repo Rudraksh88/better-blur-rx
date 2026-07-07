@@ -483,6 +483,7 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
         && wallpaper.texture->internalFormat() == textureFormat
         && wallpaper.texture->size() == textureSize
         && wallpaper.geometry == geometry
+        && wallpaper.window == desktop->window()
         && !wallpaper.damaged) {
         return &wallpaper;
     }
