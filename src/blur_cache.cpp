@@ -189,6 +189,12 @@ void BBDX::BlurCacheEntry::invalidate(const char* msg) {
 void BBDX::BlurCache::slotWallpaperDamaged(KWin::Window *window) {
     Q_UNUSED(window);
 
+    for (auto &[view, wallpaper] : m_wallpapers) {
+        if (window == wallpaper.window) {
+            wallpaper.damaged = true;
+        }
+    }
+
     // now flush and implicitly fetch new wallpaper
     m_effect->windowManager()->flushAllWindowCaches();
 }
@@ -446,10 +452,6 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     KWin::RenderView *view = const_cast<KWin::RenderView *>(m_paintData.view);
     KWin::RenderTarget *renderTarget = const_cast<KWin::RenderTarget *>(m_paintData.renderTarget);
 
-    // for now only cache for the purpose of reusing
-    // framebuffer + texture if they still fit
-    WallpaperData &wallpaper = m_wallpapers[view];
-
     KWin::EffectWindow *desktop{nullptr};
     for (const auto &window : effects->stackingOrder()) {
         if (window->isDesktop() && window->screen() == view->logicalOutput()) {
@@ -463,8 +465,6 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
         return nullptr;
     }
 
-    wallpaper.geometry = view->logicalOutput()->geometryF();
-
     GLenum textureFormat = GL_RGBA8;
     if (renderTarget->texture()) {
         textureFormat = renderTarget->texture()->internalFormat();
@@ -472,24 +472,39 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
 
     const QSize textureSize{(view->logicalOutput()->geometryF().size()).toSize()};
 
+    const RectF geometry{view->logicalOutput()->geometryF()};
+    
+
+    // cached wallpaper
+    WallpaperData &wallpaper = m_wallpapers[view];
+
+    // wallpaper (still) valid
+    if (wallpaper.texture
+        && wallpaper.texture->internalFormat() == textureFormat
+        && wallpaper.texture->size() == textureSize
+        && wallpaper.geometry == geometry
+        && !wallpaper.damaged) {
+        return &wallpaper;
+    }
+
+    wallpaper.geometry = geometry;
+
     // realloc framebuffer+texture when needed
-    if (!wallpaper.texture || wallpaper.texture->internalFormat() != textureFormat || wallpaper.texture->size() != textureSize) {
-        qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "(Re-)Allocating wallpaper buffer";
+    qCDebug(BLUR_CACHE) << BBDX::LOG_PREFIX << "(Re-)Allocating wallpaper buffer";
 
-        wallpaper.texture = KWin::GLTexture::allocate(textureFormat, textureSize);
-        if (!wallpaper.texture) {
-            qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "GLTexture allocation failed";
-            return nullptr;
-        }
+    wallpaper.texture = KWin::GLTexture::allocate(textureFormat, textureSize);
+    if (!wallpaper.texture) {
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "GLTexture allocation failed";
+        return nullptr;
+    }
 
-        wallpaper.texture->setFilter(GL_LINEAR);
-        wallpaper.texture->setWrapMode(GL_CLAMP_TO_EDGE);
+    wallpaper.texture->setFilter(GL_LINEAR);
+    wallpaper.texture->setWrapMode(GL_CLAMP_TO_EDGE);
 
-        wallpaper.framebuffer = std::make_unique<GLFramebuffer>(wallpaper.texture.get());
-        if (!wallpaper.framebuffer->valid()) {
-            qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "GLFramebuffer allocation failed";
-            return nullptr;
-        }
+    wallpaper.framebuffer = std::make_unique<GLFramebuffer>(wallpaper.texture.get());
+    if (!wallpaper.framebuffer->valid()) {
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "GLFramebuffer allocation failed";
+        return nullptr;
     }
 
     const RenderTarget wallpaperRenderTarget{wallpaper.framebuffer.get(), renderTarget->colorDescription()};
@@ -500,7 +515,12 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     effects->drawWindow(wallpaperRenderTarget, wallpaperRenderViewport, desktop, KWin::Scene::PAINT_WINDOW_TRANSFORMED, KWin::Region::infinite(), data);
     GLFramebuffer::popFramebuffer();
 
+    wallpaper.window = desktop->window();
+    wallpaper.damaged = false;
+
     // connection for tracking damage
+    // (explicit disconnect to avoid duplication on realloc)
+    disconnect(wallpaper.connection);
     wallpaper.connection = connect(desktop->window(), &KWin::Window::damaged, this, &BBDX::BlurCache::slotWallpaperDamaged);
 
     return &wallpaper;

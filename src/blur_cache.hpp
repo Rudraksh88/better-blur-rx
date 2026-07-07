@@ -183,7 +183,11 @@ struct WallpaperData {
     std::unique_ptr<KWin::GLFramebuffer> framebuffer;
     std::unique_ptr<KWin::GLTexture> texture;
 
-    // connection to the underlying desktop window
+    // underlying window and whether it was marked damaged
+    KWin::Window *window{};
+    bool damaged{false};
+
+    // connection to the underlying desktop window's damaged signal
     QMetaObject::Connection connection;
 };
 
