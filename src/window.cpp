@@ -87,7 +87,12 @@ void BBDX::Window::slotWindowFrameGeometryChanged() {
     updateForceBlurRegion();
     refreshMaximizedState();
 
-    m_windowManager->flushWindowCaches(this);
+    // Just mark cache region dirty to force a full flush here.
+    // BlurEffect::blur() may upgrade this to realloc buffers
+    // in case their size doesn't match anymore
+    m_windowManager->invalidateBlurCache(m_effectwindow,
+                                         static_cast<uint>(BlurCacheInvalidationFlag::REGION),
+                                         "frameGeometry changed");
 
     // Not sure if this is the best place to unset
     // this but seems to work fine for now
