@@ -32,6 +32,7 @@ namespace KWin {
 namespace BBDX {
 class BlurEffect;
 struct BlurRenderData;
+struct BlurCachePaintData;
 
 // options for cache invalidation mask
 enum class BlurCacheInvalidationFlag : uint {
@@ -148,7 +149,7 @@ public:
      */
     void flush(const char *msg = nullptr);
     void abortFlush(const char *msg = nullptr);
-    void flushed(const KWin::Region &dirtyRegion);
+    void flushed(const BlurCachePaintData &paintData);
 
     /**
      * Like flush() but keeps the flush alive for

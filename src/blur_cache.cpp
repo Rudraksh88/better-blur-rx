@@ -152,10 +152,10 @@ void BBDX::BlurCacheEntry::abortFlush(const char *msg) {
     }
 }
 
-void BBDX::BlurCacheEntry::flushed(const KWin::Region &dirtyRegion) {
+void BBDX::BlurCacheEntry::flushed(const BlurCachePaintData &paintData) {
     if (m_isFlushing) {
-        for (const auto &rect : dirtyRegion.rects()) {
-            m_cachedRegion |= rect.translated(-m_backgroundRect.topLeft());
+        for (const auto &rect : paintData.cacheShape) {
+            m_cachedRegion |= rect;
         }
 
         m_accumulatedDirtyRegion = KWin::Region{};
@@ -422,7 +422,7 @@ void BBDX::BlurCache::drawCached(const KWin::RenderViewport &viewport, BBDX::Blu
     KWin::GLTexture* read;
     if (const auto &cacheEntry = renderInfo.cache.get()) {
         read = cacheEntry->cachedTexture();
-        cacheEntry->flushed(*m_paintData.dirtyRegion);
+        cacheEntry->flushed(m_paintData);
     } else {
         // bail if we didn't select or add a cache entry
         qCritical(BLUR_CACHE) << BBDX::LOG_PREFIX << "drawCached() called without a valid cache entry";
