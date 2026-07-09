@@ -360,6 +360,7 @@ void BlurEffect::reconfigure(ReconfigureFlags flags)
     m_refractionPass->reconfigure();
     m_windowManager->reconfigure();
     m_forceContrastParams = BlurConfig::forceContrastParams();
+    m_cacheRateLimit = BlurConfig::cacheRateLimit();
 #if defined(BBDX_X11)
     m_blitMode = BlitMode::RENDER_TARGET;
 #else

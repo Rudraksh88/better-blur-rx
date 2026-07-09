@@ -78,5 +78,8 @@ class3</default>
             </choices>
             <default>BlitMode::RENDER_TARGET</default>
         </entry>
+        <entry name="CacheRateLimit" type="Int">
+            <default>0</default>
+        </entry>
     </group>
 </kcfg>

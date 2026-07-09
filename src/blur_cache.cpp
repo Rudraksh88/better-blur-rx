@@ -370,7 +370,7 @@ void BBDX::BlurCache::drawCached(const KWin::RenderViewport &viewport, BBDX::Blu
     const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
 
     KWin::ShaderManager::instance()->pushShader(m_texturePass.shader.get());
-    
+
     QMatrix4x4 projectionMatrix = viewport.projectionMatrix();
     projectionMatrix.translate(scaledBackgroundRect.x(), scaledBackgroundRect.y());
 
@@ -434,11 +434,20 @@ void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &dat
                     break;
 
                 default:
-                    // flush at ~30fps in normal mode
-                    std::chrono::milliseconds flushInterval{33};
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cacheEntry->lastFlush());
-                    if (elapsed > flushInterval) {
+                    // configurable flush in normal mode
+                    int interval = m_effect->cacheRateLimit();
+
+                    if (interval <= 0) {
+                        // Unlimited
                         cacheEntry->flush();
+                    } else {
+                        // Rate limited
+                        std::chrono::milliseconds flushInterval{interval};
+                        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cacheEntry->lastFlush());
+
+                        if (elapsed > flushInterval) {
+                            cacheEntry->flush();
+                        }
                     }
             }
 
@@ -486,7 +495,7 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     const QSize textureSize{(view->logicalOutput()->geometryF().size()).toSize()};
 
     const RectF geometry{view->logicalOutput()->geometryF()};
-    
+
 
     // cached wallpaper
     WallpaperData &wallpaper = m_wallpapers[view];

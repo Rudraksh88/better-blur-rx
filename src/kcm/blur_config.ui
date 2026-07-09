@@ -837,6 +837,30 @@
          </item>
         </widget>
        </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="labelCacheRateLimit">
+         <property name="text">
+          <string>Cache Rate Limit (ms):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <layout class="QVBoxLayout" name="verticalLayout_71">
+         <item>
+          <widget class="QDoubleSpinBox" name="kcfg_CacheRateLimit">
+           <property name="decimals">
+            <number>0</number>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>33.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget">
