@@ -81,5 +81,8 @@ class3</default>
         <entry name="BlurCacheIgnore" type="Bool">
             <default>false</default>
         </entry>
+        <entry name="BlurCacheRateLimit" type="Int">
+            <default>33</default>
+        </entry>
     </group>
 </kcfg>
