@@ -88,13 +88,8 @@ KWin::Rect BBDX::rectRoundedOut(KWin::RectF rect) {
 
 KWin::RegionF BBDX::regionTranslatedF(KWin::RegionF region, QPointF translation) {
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
-    KWin::RegionF translated{};
-    
-    for (const auto &rect : region.rects()) {
-        translated |= rect.translated(translation.toPoint());
-    }
-
-    return translated;
+    // < 6.7 maps RegionF to integral (Q)Region
+    return region.translated(translation.toPoint());
 #else
     return region.translated(translation);
 #endif
