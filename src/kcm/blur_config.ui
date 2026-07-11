@@ -1249,54 +1249,181 @@
       <attribute name="title">
        <string>Performance</string>
       </attribute>
-      <layout class="QFormLayout" name="formLayoutPerformance">
-       <item row="0" column="0">
-        <widget class="QLabel" name="labelBlitMode">
+      <layout class="QVBoxLayout">
+       <property name="spacing">
+        <number>8</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="headerPerformance">
          <property name="text">
-          <string>Blur Source Mode:</string>
+          <string>Caching</string>
+         </property>
+         <property name="sectionHeader" stdset="0">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QComboBox" name="kcfg_BlitMode">
-         <item>
-          <property name="text">
-           <string>Full</string>
+       <item>
+        <widget class="QFrame" name="cardPerformance">
+         <property name="settingsCard" stdset="0">
+          <bool>true</bool>
+         </property>
+         <layout class="QVBoxLayout">
+          <property name="leftMargin">
+           <number>12</number>
           </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Wallpaper [EXPERIMENTAL]</string>
+          <property name="topMargin">
+           <number>12</number>
           </property>
-         </item>
+          <property name="rightMargin">
+           <number>12</number>
+          </property>
+          <property name="bottomMargin">
+           <number>12</number>
+          </property>
+          <property name="spacing">
+           <number>6</number>
+          </property>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelBlitMode">
+              <property name="text">
+               <string>Blur source mode</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerBlitMode">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QComboBox" name="kcfg_BlitMode">
+              <item>
+               <property name="text">
+                <string>Full</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Wallpaper [EXPERIMENTAL]</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QFrame" name="sepPerformance1">
+            <property name="frameShape">
+             <enum>QFrame::Shape::HLine</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Plain</enum>
+            </property>
+            <property name="cardSeparator" stdset="0">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelBlurCacheIgnore">
+              <property name="text">
+               <string>Ignore cache</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerBlurCacheIgnore">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="ToggleSwitch" name="kcfg_BlurCacheIgnore"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QFrame" name="sepPerformance2">
+            <property name="frameShape">
+             <enum>QFrame::Shape::HLine</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Plain</enum>
+            </property>
+            <property name="cardSeparator" stdset="0">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelCacheRateLimit">
+              <property name="text">
+               <string>Cache rate limit</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerCacheRateLimit">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="kcfg_BlurCacheRateLimit">
+              <property name="suffix">
+               <string> ms</string>
+              </property>
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="labelBlurCacheIgnore">
-         <property name="text">
-          <string>Ignore Cache:</string>
+       <item>
+        <spacer name="performanceTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
          </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QCheckBox" name="kcfg_BlurCacheIgnore"/>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="labelCacheRateLimit">
-         <property name="text">
-          <string>Cache Rate Limit:</string>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>10</height>
+          </size>
          </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QSpinBox" name="kcfg_BlurCacheRateLimit">
-         <property name="suffix">
-          <string> ms</string>
-         </property>
-         <property name="maximum">
-          <number>1000</number>
-         </property>
-        </widget>
+        </spacer>
        </item>
       </layout>
      </widget>
