@@ -187,32 +187,36 @@ void BBDX::Window::updateForceBlurRegion() {
     KWin::RegionF content{};
     KWin::RegionF frame{};
 
-    // We'll push both content and frame through the "raw" frame
-    // geometry for full control over the blurred region.
-    // 
-    // content gets a single dummy pixel to make BlurEffect::blurRegion() happy
-    // (TODO: remove it entirely from here and adjust getFinalBlurRegion())
-    content |= KWin::Rect{0, 0, 1, 1};
+    // We'll push both content and frame through the "raw" frame later
+    // for full control over the blurred region.
+    // So unlike BlurEffect these are frameGeometry local not contentsRect local
 
     // frameGeometry rounded in to avoid leaking "blur stripes" around window
-    frame |= BBDX::rectRoundedIn(
+    content |= BBDX::rectRoundedIn(
         m_effectwindow->frameGeometry()
             .translated(-m_effectwindow->frameGeometry().topLeft())
     );
 
-    if (!m_windowManager->blurDecorations() && m_effectwindow->decoration()) {
-        // frame has content + decorations so to just get the decorations clip the contents
-        const auto decorationRegion = frame - BBDX::rectRoundedOut(m_effectwindow->contentsRect());
+    // content at this point has content + decorations
+    // so to just get the decorations clip the contentsRect
+    if (m_effectwindow->decoration()) {
+        frame = content - BBDX::rectRoundedOut(m_effectwindow->contentsRect());
+    }
 
-        for (const auto &rect : decorationRegion.rects()) {
-            frame -= rect;
-        }
+    // now clip the frame on decorated windows to get the actual content
+    for (const auto &rect : frame.rects()) {
+        content -= rect;
     }
 
     // unchanged
     if (content == m_forceBlurContent && frame == m_forceBlurFrame) {
         return;
     }
+
+    qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX
+                         << "Force blur regions changed:" << m_effectwindow->windowClass() << "\n"
+                         << "content" << content << "\n"
+                         << "frame" << frame;
 
     m_forceBlurContent = std::move(content);
     m_forceBlurFrame = std::move(frame);
@@ -361,18 +365,36 @@ void BBDX::Window::reconfigure() {
 void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) {
     unsigned int oldBlurOriginMask = m_blurOriginMask;
 
+    // always clip blur regions into the frameGeometry
+    // to avoid leaving stripes outside
+    // (usually bottom and/or right side of the window)
+    // The force-blur regiongs are pre-clipped
+    const auto clipRect = BBDX::rectRoundedIn(
+        m_effectwindow->frameGeometry()
+        .translated(-m_effectwindow->frameGeometry().topLeft())
+    );
+
     // If we already have a blur region at this point
     // the window requested it.
     // This tracker allows us to later decide if we want
     // to trust the window or use user parameters
     // e.g. for corner radius.
     if (content.has_value()) {
+        // content is local to contentsRect which is local to frameGeometry
+        const auto contentTopLeft = m_effectwindow->contentsRect().topLeft();
+        content = BBDX::regionTranslatedF(
+            BBDX::regionTranslatedF(*content, contentTopLeft) & clipRect,
+            -contentTopLeft
+        );
+        
         blurOriginSet(BlurOrigin::RequestedContent);
         blurOriginUnset(BlurOrigin::ForcedContent);
     } else {
         blurOriginUnset(BlurOrigin::RequestedContent);
     }
     if (frame.has_value()) {
+        frame = *frame & clipRect;
+
         blurOriginSet(BlurOrigin::RequestedFrame);
         blurOriginUnset(BlurOrigin::ForcedFrame);
     } else {
@@ -392,30 +414,46 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         return;
     }
 
-    // Apply potentially set forceblur regions
-    // if (and only if) set in updateForceBlurRegion().
-    // We can't set these unconditionally (especially frame) because
-    // custom decorations might have set their own blur region.
+    // the effective blurred region
+    KWin::RegionF effectiveRegion{};
+
+    // outside of the Plasma surface special case
+    // content should always be overriden as it can have
+    // "garbage data" (e.g. Dolphin's theming sets blur region for like 4 random Rects
+    // scattered around the window)
     if (m_forceBlurContent.has_value()) {
-        content = m_forceBlurContent;
+        for (const auto &rect : m_forceBlurContent->rects()) {
+            effectiveRegion |= rect;
+        }
         blurOriginSet(BlurOrigin::ForcedContent);
         blurOriginUnset(BlurOrigin::RequestedContent);
     } else {
         blurOriginUnset(BlurOrigin::ForcedContent);
     }
 
-    // Only override frame if it doesn't already specify a blur region.
-    // The provided one is likely more accurate (e.g. already has its corners rounded
-    // or an outline that shouldn't be blured)
-    // (XXX: Shouldn't interfere with the "isX11WithCSD" hack
-    // because CSD windows should never have a frame already set)
-    if (m_forceBlurFrame.has_value() && !frame.has_value()) {
-        frame = m_forceBlurFrame;
+    if (frame) {
+        // preserve frame if it already exists as it's likely more accurate
+        // (e.g. already has its corners rounded or an outline that shouldn't be blured)
+        for (const auto &rect : frame->rects()) {
+            effectiveRegion |= rect;
+        }
+    } else if (m_forceBlurFrame && m_windowManager->blurDecorations()) {
+        // else fall back to user requested forced frame ("Blur Decorations As Well" option)
+        for (const auto &rect : m_forceBlurFrame->rects()) {
+            effectiveRegion |= rect;
+        }
         blurOriginSet(BlurOrigin::ForcedFrame);
         blurOriginUnset(BlurOrigin::RequestedFrame);
     } else {
+        // no frame / CSD
         blurOriginUnset(BlurOrigin::ForcedFrame);
     }
+
+    // push the effective forced regions through frame only
+    // which gives us full control over geometry and implicitly
+    // preserves window provided content
+    // (which in force-blurred cases is likely just covered)
+    frame = effectiveRegion;
 
     if (m_blurOriginMask != oldBlurOriginMask) {
         qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "Blur origin changed:" << *this;

@@ -63,7 +63,7 @@ private:
     bool m_blurDocks{false};
     qreal m_userBorderRadius{0.0};
 
-    // if force blurred, contain content/frame of the blur region
+    // if force blurred, contains the blurred region
     std::optional<KWin::RegionF> m_forceBlurContent{};
     std::optional<KWin::RegionF> m_forceBlurFrame{};
 
