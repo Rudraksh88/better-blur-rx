@@ -799,13 +799,13 @@ bool BlurEffect::shouldBlur(const EffectWindow *w, int mask, const WindowPaintDa
     bool translated = data.xTranslation() || data.yTranslation();
 
     if ((scaled || (translated || (mask & PAINT_WINDOW_TRANSFORMED))) && !w->data(WindowForceBlurRole).toBool()) {
-        // BBDX:
+        // BBDX: keep tracking the transformed state (caches rely on it) but
+        // always blur during transforms. Upstream gates this on
+        // windowShouldBlurWhileTransformed() to suppress blur during minimize
+        // and animations like Magic Lamp / Wobbly Windows; we prefer blur to
+        // persist through all transforms.
         m_windowManager->setWindowIsTransformed(w, true);
-        if (m_windowManager->windowShouldBlurWhileTransformed(w)) {
-            return true;
-        }
-
-        return false;
+        return true;
     }
     // BBDX:
     m_windowManager->setWindowIsTransformed(w, false);

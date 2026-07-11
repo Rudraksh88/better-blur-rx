@@ -2,4 +2,5 @@ result*
 .idea
 cmake-build-debug
 build/
+build-*/
 .cache/
