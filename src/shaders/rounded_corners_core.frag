@@ -22,7 +22,8 @@ void main(void)
         : (vertex.y < box.y ? cornerRadius.y : cornerRadius.z);
     vec2 q = abs(vertex - box.xy) - box.zw + vec2(radius);
     vec2 outside = max(q, vec2(0.0));
-    const float squirclePower = 3.0;
+    // K=0.8 cubic midpoint maps to a superellipse exponent of about 3.106.
+    const float squirclePower = 3.1;
     float squircleDistance = min(max(q.x, q.y), 0.0)
         + pow(pow(outside.x, squirclePower) + pow(outside.y, squirclePower), 1.0 / squirclePower)
         - radius;
