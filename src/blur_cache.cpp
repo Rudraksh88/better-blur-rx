@@ -233,25 +233,25 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_texturePass.modulationLocation = blurCache->m_texturePass.shader->uniformLocation("modulation");
     }
 
-    blurCache->m_squircleTexturePass.shader = KWin::ShaderManager::instance()->generateShaderFromFile(
+    blurCache->m_shapeTexturePass.shader = KWin::ShaderManager::instance()->generateShaderFromFile(
         KWin::ShaderTrait::MapTexture,
         BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/rounded_corners.vert"),
         BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/rounded_corners.frag")
     );
-    if (!blurCache->m_squircleTexturePass.shader) {
-        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Failed to load squircle texture pass shader";
+    if (!blurCache->m_shapeTexturePass.shader) {
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Failed to load shape texture pass shader";
         return nullptr;
     }
-    blurCache->m_squircleTexturePass.mvpMatrixLocation =
-        blurCache->m_squircleTexturePass.shader->uniformLocation("modelViewProjectionMatrix");
-    blurCache->m_squircleTexturePass.modulationLocation =
-        blurCache->m_squircleTexturePass.shader->uniformLocation("modulation");
-    blurCache->m_squircleTexturePass.boxLocation =
-        blurCache->m_squircleTexturePass.shader->uniformLocation("box");
-    blurCache->m_squircleTexturePass.cornerRadiusLocation =
-        blurCache->m_squircleTexturePass.shader->uniformLocation("cornerRadius");
-    blurCache->m_squircleTexturePass.squircleLocation =
-        blurCache->m_squircleTexturePass.shader->uniformLocation("squircle");
+    blurCache->m_shapeTexturePass.mvpMatrixLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("modelViewProjectionMatrix");
+    blurCache->m_shapeTexturePass.modulationLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("modulation");
+    blurCache->m_shapeTexturePass.boxLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("box");
+    blurCache->m_shapeTexturePass.cornerRadiusLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("cornerRadius");
+    blurCache->m_shapeTexturePass.squircleLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("squircle");
 
     return blurCache;
 }
@@ -464,28 +464,29 @@ void BBDX::BlurCache::drawCached(const KWin::RenderViewport &viewport, BBDX::Blu
     KWin::ShaderManager::instance()->popShader();
 }
 
-void BBDX::BlurCache::drawSquircleCached(const KWin::RenderViewport &viewport,
-                                         BBDX::BlurRenderData &renderInfo,
-                                         KWin::GLVertexBuffer *vbo,
-                                         int vertexCount,
-                                         float modulation,
-                                         const QVector4D &box,
-                                         const QVector4D &cornerRadius) const {
+void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
+                                       BBDX::BlurRenderData &renderInfo,
+                                       KWin::GLVertexBuffer *vbo,
+                                       int vertexCount,
+                                       float modulation,
+                                       const QVector4D &box,
+                                       const QVector4D &cornerRadius,
+                                       bool squircle) const {
     const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
     auto *cacheEntry = renderInfo.cache.get();
     if (!cacheEntry) {
-        qCritical(BLUR_CACHE) << BBDX::LOG_PREFIX << "drawSquircleCached() called without a valid cache entry";
+        qCritical(BLUR_CACHE) << BBDX::LOG_PREFIX << "drawShapedCached() called without a valid cache entry";
         return;
     }
 
-    KWin::ShaderManager::instance()->pushShader(m_squircleTexturePass.shader.get());
+    KWin::ShaderManager::instance()->pushShader(m_shapeTexturePass.shader.get());
     QMatrix4x4 projectionMatrix = viewport.projectionMatrix();
     projectionMatrix.translate(scaledBackgroundRect.x(), scaledBackgroundRect.y());
-    m_squircleTexturePass.shader->setUniform(m_squircleTexturePass.mvpMatrixLocation, projectionMatrix);
-    m_squircleTexturePass.shader->setUniform(m_squircleTexturePass.modulationLocation, modulation);
-    m_squircleTexturePass.shader->setUniform(m_squircleTexturePass.boxLocation, box);
-    m_squircleTexturePass.shader->setUniform(m_squircleTexturePass.cornerRadiusLocation, cornerRadius);
-    m_squircleTexturePass.shader->setUniform(m_squircleTexturePass.squircleLocation, 1);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.mvpMatrixLocation, projectionMatrix);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.modulationLocation, modulation);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.boxLocation, box);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.cornerRadiusLocation, cornerRadius);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.squircleLocation, squircle ? 1 : 0);
     cacheEntry->cachedTexture()->bind();
     cacheEntry->flushed(m_paintData);
 

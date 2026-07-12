@@ -7,6 +7,12 @@ Things not in any tagged release yet:
   use full coarse bounds so their configured radius remains authoritative
   instead of being clipped by an integer client blur region.
 
+### Bug Fixes
+- Apply regular rounded-corner masks during the final cache composite, matching
+  the squircle path. The old cache-stage pass sampled from and rendered into the
+  same texture, an undefined OpenGL feedback loop that could produce flickering
+  rectangular or colorful pixel blocks during surface damage.
+
 # 2.5.1
 
 ### Bug Fixes:

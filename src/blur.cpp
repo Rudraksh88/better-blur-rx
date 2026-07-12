@@ -13,7 +13,6 @@
 #include "blur_cache.hpp"
 #include "kwin_compat.hpp"
 #include "refraction_pass.hpp"
-#include "rounded_corners_pass.hpp"
 #include "settings.hpp"
 #include "utils.h"
 #include "window_manager.hpp"
@@ -180,12 +179,6 @@ BlurEffect::BlurEffect()
     m_refractionPass = BBDX::RefractionPass::create();
     if (!m_refractionPass) {
         qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX << "Failed to create RefractionPass";
-        return;
-    }
-
-    m_roundedCornersPass = BBDX::RoundedCornersPass::create();
-    if (!m_roundedCornersPass) {
-        qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX << "Failed to create RoundedCornersPass";
         return;
     }
 
@@ -1141,7 +1134,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     const bool squircleMask = !cornerRadius.isNull() && m_windowManager->usesSquircleMask(w);
     const auto drawFinalCached = [&]() {
         const float modulation = opacity * opacity;
-        if (!squircleMask) {
+        if (cornerRadius.isNull()) {
             m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
             return;
         }
@@ -1157,7 +1150,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                                     .rounded()
                                     .translated(-scaledBackgroundRect.topLeft());
         const BorderRadius nativeCornerRadius = cornerRadius.scaled(viewport.scale()).rounded();
-        m_blurCache->drawSquircleCached(
+        m_blurCache->drawShapedCached(
             viewport,
             renderInfo,
             vbo,
@@ -1165,7 +1158,8 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             modulation,
             QVector4D(nativeBox.horizontalCenter(), nativeBox.verticalCenter(),
                       nativeBox.width() * 0.5, nativeBox.height() * 0.5),
-            nativeCornerRadius.toVector());
+            nativeCornerRadius.toVector(),
+            squircleMask);
     };
 
     // BBDX: rate limited
@@ -1373,17 +1367,6 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
 
         glDisable(GL_BLEND);
-    }
-
-    if (!cornerRadius.isNull() && !squircleMask) {
-        m_roundedCornersPass->apply(cornerRadius,
-                                    false,
-                                    backgroundRect,
-                                    renderInfo,
-                                    w,
-                                    data,
-                                    vbo,
-                                    m_blurCache.get());
     }
 
     // BBDX:

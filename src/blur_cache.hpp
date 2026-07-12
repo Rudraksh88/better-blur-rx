@@ -228,7 +228,7 @@ private:
         int boxLocation;
         int cornerRadiusLocation;
         int squircleLocation;
-    } m_squircleTexturePass;
+    } m_shapeTexturePass;
 
     // pointer to the managing effect
     BlurEffect *m_effect{nullptr};
@@ -317,14 +317,15 @@ public:
      */
     void drawCached(const KWin::RenderViewport &viewport, BBDX::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo, const int vertexCount, const float modulation) const;
 
-    /** Final-composite a cached blur through the antialiased squircle SDF. */
-    void drawSquircleCached(const KWin::RenderViewport &viewport,
-                            BBDX::BlurRenderData &renderInfo,
-                            KWin::GLVertexBuffer *vbo,
-                            int vertexCount,
-                            float modulation,
-                            const QVector4D &box,
-                            const QVector4D &cornerRadius) const;
+    /** Final-composite a cached blur through an antialiased shape SDF. */
+    void drawShapedCached(const KWin::RenderViewport &viewport,
+                          BBDX::BlurRenderData &renderInfo,
+                          KWin::GLVertexBuffer *vbo,
+                          int vertexCount,
+                          float modulation,
+                          const QVector4D &box,
+                          const QVector4D &cornerRadius,
+                          bool squircle) const;
 
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache

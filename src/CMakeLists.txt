@@ -6,7 +6,6 @@ set(better_blur_dx_SOURCES
     blur_cache.cpp
     main.cpp
     refraction_pass.cpp
-    rounded_corners_pass.cpp
     utils.cpp
     window.cpp
     window_manager.cpp

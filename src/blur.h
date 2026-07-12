@@ -12,7 +12,6 @@
 #include "kwin_compat.hpp"
 
 #include "refraction_pass.hpp"
-#include "rounded_corners_pass.hpp"
 #include "window_manager.hpp"
 #include "settings.hpp"
 
@@ -250,7 +249,6 @@ private:
     std::unique_ptr<BBDX::BlurCache> m_blurCache{};
     friend void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &data) const;
     std::unique_ptr<BBDX::RefractionPass> m_refractionPass{};
-    std::unique_ptr<BBDX::RoundedCornersPass> m_roundedCornersPass{};
 
 public:
     WindowManager* windowManager() const { return m_windowManager.get(); }
