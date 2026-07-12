@@ -42,12 +42,15 @@ std::unique_ptr<BBDX::RoundedCornersPass> BBDX::RoundedCornersPass::create() {
         pass->m_mvpMatrixLocation = pass->m_shader->uniformLocation("modelViewProjectionMatrix");
         pass->m_boxLocation = pass->m_shader->uniformLocation("box");
         pass->m_cornerRadiusLocation = pass->m_shader->uniformLocation("cornerRadius");
+        pass->m_squircleLocation = pass->m_shader->uniformLocation("squircle");
+        pass->m_modulationLocation = pass->m_shader->uniformLocation("modulation");
     }
 
     return pass;
 }
 
 void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
+                                     bool squircle,
                                      const KWin::Rect &backgroundRect,
                                      BBDX::BlurRenderData &renderInfo,
                                      const KWin::EffectWindow *w,
@@ -86,6 +89,8 @@ void BBDX::RoundedCornersPass::apply(const KWin::BorderRadius &cornerRadius,
         m_shader->setUniform(m_boxLocation, QVector4D(box.horizontalCenter(), box.verticalCenter(), box.width() * 0.5, box.height() * 0.5));
 #endif
         m_shader->setUniform(m_cornerRadiusLocation, cornerRadius.toVector());
+        m_shader->setUniform(m_squircleLocation, squircle ? 1 : 0);
+        m_shader->setUniform(m_modulationLocation, 1.0f);
 
         BBDX::setTextureSwizzle(read->colorAttachment());
         read->colorAttachment()->bind();

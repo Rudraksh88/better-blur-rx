@@ -5,6 +5,8 @@
 uniform sampler2D texUnit;
 uniform vec4 box;
 uniform vec4 cornerRadius;
+uniform int squircle;
+uniform float modulation;
 
 in vec2 uv;
 in vec2 vertex;
@@ -15,9 +17,21 @@ void main(void)
 {
     fragColor = texture(texUnit, uv);
 
-    float f = sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius);
+    float radius = vertex.x < box.x
+        ? (vertex.y < box.y ? cornerRadius.x : cornerRadius.w)
+        : (vertex.y < box.y ? cornerRadius.y : cornerRadius.z);
+    vec2 q = abs(vertex - box.xy) - box.zw + vec2(radius);
+    vec2 outside = max(q, vec2(0.0));
+    const float squirclePower = 3.0;
+    float squircleDistance = min(max(q.x, q.y), 0.0)
+        + pow(pow(outside.x, squirclePower) + pow(outside.y, squirclePower), 1.0 / squirclePower)
+        - radius;
+    float f = squircle != 0
+        ? squircleDistance
+        : sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius);
     float df = fwidth(f);
-    float alpha = clamp(0.5 - f / df, 0.0, 1.0);
+    float feather = squircle != 0 ? 1.5 : 1.0;
+    float alpha = clamp(0.5 - f / (df * feather), 0.0, 1.0);
 
-    fragColor = fragColor * alpha;
+    fragColor = fragColor * alpha * modulation;
 }

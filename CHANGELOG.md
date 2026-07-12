@@ -1,6 +1,12 @@
 # DEV
 Things not in any tagged release yet:
 
+### Features
+- Add a per-window squircle shape override with an antialiased superellipse
+  mask at the final cached-blur composite stage. Undecorated squircle windows
+  use full coarse bounds so their configured radius remains authoritative
+  instead of being clipped by an integer client blur region.
+
 # 2.5.1
 
 ### Bug Fixes:

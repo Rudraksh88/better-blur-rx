@@ -34,6 +34,8 @@ private:
     int m_mvpMatrixLocation;
     int m_boxLocation;
     int m_cornerRadiusLocation;
+    int m_squircleLocation;
+    int m_modulationLocation;
 
     RoundedCornersPass() = default;
 
@@ -49,6 +51,7 @@ public:
      * which should contain the raw un-blurred pixels of the blur area.
      */
     void apply(const KWin::BorderRadius &cornerRadius,
+               bool squircle,
                const KWin::Rect &backgroundRect,
                BBDX::BlurRenderData &renderInfo,
                const KWin::EffectWindow *w,
@@ -58,4 +61,3 @@ public:
 };
 
 } // namespace BBDX
-

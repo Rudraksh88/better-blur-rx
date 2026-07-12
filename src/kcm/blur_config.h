@@ -62,6 +62,7 @@ private:
         std::optional<int> brightness;
         std::optional<int> saturation;
         std::optional<int> contrast;
+        bool squircle{false};
     };
 
     void setupWindowOverrides();

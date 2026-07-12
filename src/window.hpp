@@ -188,6 +188,14 @@ public:
     bool isPlasmaSurface() const;
 
     /**
+     * Whether this window owns an exact client-provided blur shape.
+     *
+     * In addition to Plasma surfaces, undecorated layer surfaces can provide
+     * masks that cannot be reconstructed from a rectangular corner radius.
+     */
+    bool hasTrustedBlurRegion() const;
+
+    /**
      * Whether this window is a menu (or menu adjacent) in BBDX terms
      */
     bool isMenu() const;

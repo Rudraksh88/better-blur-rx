@@ -47,6 +47,7 @@ enum OverrideField {
     FieldBrightness,
     FieldSaturation,
     FieldContrast,
+    FieldShape,
     FieldCount,
 };
 }
@@ -339,6 +340,7 @@ void BlurEffectConfig::setupWindowOverrides()
     connect(ui.overrideBrightnessBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
     connect(ui.overrideSaturationBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
     connect(ui.overrideContrastBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
+    connect(ui.overrideSquircleCheck, &QCheckBox::toggled, this, &BlurEffectConfig::applyEditorToRule);
 
     // The hidden kcfg_WindowOverrides text edit is the source of truth managed by
     // KConfigSkeleton. Mirror its content into the rule list whenever it changes
@@ -381,6 +383,8 @@ void BlurEffectConfig::rebuildRulesFromText()
         rule.brightness = parseInt(FieldBrightness);
         rule.saturation = parseInt(FieldSaturation);
         rule.contrast = parseInt(FieldContrast);
+        rule.squircle = fields.value(FieldShape).trimmed().compare(
+            QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
 
         m_overrideRules.append(rule);
     }
@@ -413,13 +417,16 @@ void BlurEffectConfig::writeRulesToText()
         if (rule.windowClass.isEmpty()) {
             continue;
         }
-        const QStringList fields = {
+        QStringList fields = {
             rule.windowClass,
             rule.cornerRadius ? QString::number(*rule.cornerRadius, 'f', 1) : QString(),
             rule.brightness ? QString::number(*rule.brightness) : QString(),
             rule.saturation ? QString::number(*rule.saturation) : QString(),
             rule.contrast ? QString::number(*rule.contrast) : QString(),
         };
+        if (rule.squircle) {
+            fields.append(QStringLiteral("squircle"));
+        }
         lines.append(fields.join(QChar('\t')));
     }
 
@@ -456,10 +463,12 @@ void BlurEffectConfig::loadEditorFromRule(int row)
         ui.overrideContrastCheck->setChecked(rule.contrast.has_value());
         ui.overrideContrastBox->setEnabled(rule.contrast.has_value());
         ui.overrideContrastBox->setValue(rule.contrast.value_or(ui.kcfg_Contrast->value()));
+        ui.overrideSquircleCheck->setChecked(rule.squircle);
     } else {
         ui.overrideClassEdit->clear();
         for (QCheckBox *check : {ui.overrideRadiusCheck, ui.overrideBrightnessCheck,
-                                 ui.overrideSaturationCheck, ui.overrideContrastCheck}) {
+                                 ui.overrideSaturationCheck, ui.overrideContrastCheck,
+                                 ui.overrideSquircleCheck}) {
             check->setChecked(false);
         }
     }
@@ -486,6 +495,7 @@ void BlurEffectConfig::applyEditorToRule()
         ? std::optional<int>(ui.overrideSaturationBox->value()) : std::nullopt;
     rule.contrast = ui.overrideContrastCheck->isChecked()
         ? std::optional<int>(ui.overrideContrastBox->value()) : std::nullopt;
+    rule.squircle = ui.overrideSquircleCheck->isChecked();
 
     updateOverrideItemLabel(row);
     writeRulesToText();
@@ -514,6 +524,9 @@ void BlurEffectConfig::updateOverrideItemLabel(int row)
     }
     if (rule.contrast) {
         parts.append(QStringLiteral("contrast %1%").arg(*rule.contrast));
+    }
+    if (rule.squircle) {
+        parts.append(QStringLiteral("squircle corners"));
     }
     item->setToolTip(parts.isEmpty()
         ? QStringLiteral("No overrides set — everything inherited") : parts.join(QStringLiteral(", ")));

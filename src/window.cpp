@@ -408,13 +408,32 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         blurOriginUnset(BlurOrigin::RequestedFrame);
     }
 
-    // Respect the requested blur region for Plasma surfaces.
+    // A shape override deliberately transfers boundary ownership from the
+    // client's integer Wayland region to Better Blur's antialiased SDF. Use
+    // the full content bounds as the coarse region; the final mask pass clips
+    // it to the configured squircle. Restrict this to undecorated surfaces so
+    // decorations and content offsets never get silently folded together.
+    if (m_windowManager->usesSquircleMask(effectwindow())
+        && !effectwindow()->hasDecoration()) {
+        content = KWin::RegionF{};
+        frame.reset();
+        blurOriginSet(BlurOrigin::ForcedContent);
+        blurOriginUnset(BlurOrigin::RequestedContent);
+        blurOriginUnset(BlurOrigin::RequestedFrame);
+        blurOriginUnset(BlurOrigin::ForcedFrame);
+        if (m_blurOriginMask != oldBlurOriginMask) {
+            qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "Blur origin changed:" << *this;
+        }
+        return;
+    }
+
+    // Respect exact blur regions supplied by trusted client-shaped surfaces.
     // We used to respect all requested blur regions but some are just
     // completely bogus (e.g. some KDE apps using Breeze like setting just part of the window blurred
     // - even if by default that blur isn't even visible *sigh*).
     // (This check implies BlurOrigin::RequestedContent + some extra heuristics
     // and thus must occur after {content,frame}.has_value() checks)
-    if (isPlasmaSurface()) {
+    if (hasTrustedBlurRegion()) {
         if (m_blurOriginMask != oldBlurOriginMask) {
             qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "Blur origin changed:" << *this;
         }
@@ -499,9 +518,11 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
     // currently)
     const KWin::BorderRadius windowCornerRadius = m_effectwindow->window()->borderRadius();
 
-    // Plasma surfaces set their blur region
-    // in a way that *should* not bleed
-    if (isPlasmaSurface()) {
+    // Client-shaped surfaces already describe their blur boundary exactly.
+    // Applying the global circular radius would destroy non-circular masks
+    // such as a dock's squircle. An explicit per-window override above stays
+    // authoritative when reshaping is deliberately requested.
+    if (hasTrustedBlurRegion()) {
         return windowCornerRadius;
     }
 
@@ -670,6 +691,21 @@ bool BBDX::Window::isPlasmaSurface() const {
     return false;
 }
 
+bool BBDX::Window::hasTrustedBlurRegion() const {
+    if (isPlasmaSurface()) {
+        return true;
+    }
+
+    // Toolkits can expose layer-shell surfaces as ordinary EffectWindows, so
+    // isDock()/isSpecialWindow() are not sufficient classifiers. Undecorated,
+    // captionless surfaces that explicitly request blur own compositor-style
+    // geometry such as panel and dock squircles. Force-blurred surfaces still
+    // continue through the normal Better Blur geometry path.
+    return blurOriginIs(BlurOrigin::RequestedContent)
+        && !effectwindow()->hasDecoration()
+        && effectwindow()->caption().isEmpty();
+}
+
 bool BBDX::Window::isMenu() const {
     return (effectwindow()->isMenu()
             || effectwindow()->isDropdownMenu()
@@ -687,6 +723,7 @@ QDebug operator<<(QDebug &debug, const BBDX::Window &window) {
     debug << "windowClass:" << window.effectwindow()->windowClass() << "\n";
     debug << "windowType:" << window.effectwindow()->windowType() << "\n";
     debug << "isPlasmaSurface:" << window.isPlasmaSurface() << "\n";
+    debug << "hasTrustedBlurRegion:" << window.hasTrustedBlurRegion() << "\n";
     debug << "isMenu:" << window.isMenu() << "\n";
     debug << "blurOrigin:" << window.blurOriginToString() << "\n";
     debug << "maximizedState:" << window.maximizedStateToString() << "\n";

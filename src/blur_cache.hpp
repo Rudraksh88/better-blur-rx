@@ -221,6 +221,15 @@ private:
         int modulationLocation;
     } m_texturePass;
 
+    struct {
+        std::unique_ptr<KWin::GLShader> shader;
+        int mvpMatrixLocation;
+        int modulationLocation;
+        int boxLocation;
+        int cornerRadiusLocation;
+        int squircleLocation;
+    } m_squircleTexturePass;
+
     // pointer to the managing effect
     BlurEffect *m_effect{nullptr};
 
@@ -307,6 +316,15 @@ public:
      * Should be called at the very end of the blur passes
      */
     void drawCached(const KWin::RenderViewport &viewport, BBDX::BlurRenderData &renderInfo, KWin::GLVertexBuffer *vbo, const int vertexCount, const float modulation) const;
+
+    /** Final-composite a cached blur through the antialiased squircle SDF. */
+    void drawSquircleCached(const KWin::RenderViewport &viewport,
+                            BBDX::BlurRenderData &renderInfo,
+                            KWin::GLVertexBuffer *vbo,
+                            int vertexCount,
+                            float modulation,
+                            const QVector4D &box,
+                            const QVector4D &cornerRadius) const;
 
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache

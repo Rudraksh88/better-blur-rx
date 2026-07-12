@@ -50,6 +50,7 @@ struct WindowOverride {
     std::optional<qreal> brightness{};
     std::optional<qreal> saturation{};
     std::optional<qreal> contrast{};
+    bool squircle{false};
 };
 
 class WindowManager : public QObject {
@@ -148,6 +149,9 @@ public:
      * window-specific color override, or empty otherwise.
      */
     std::optional<QMatrix4x4> getColorMatrixOverride(const KWin::EffectWindow *w) const;
+
+    /** Whether the matching override requests a superellipse corner mask. */
+    bool usesSquircleMask(const KWin::EffectWindow *w) const;
 
     /**
      * Match an EffectWindow instance in the black/white list

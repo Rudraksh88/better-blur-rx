@@ -161,7 +161,7 @@ void BBDX::WindowManager::reconfigure() {
 
     // Parse window-specific overrides.
     // One row per line, tab separated:
-    //   <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>
+    //   <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>\t<shape>
     // An empty field means "inherit" (use the global value).
     QList<WindowOverride> windowOverrides{};
     for (const auto &line : config->windowOverrides().split(QChar('\n'), Qt::SkipEmptyParts)) {
@@ -212,6 +212,8 @@ void BBDX::WindowManager::reconfigure() {
         if (const auto c = parseOpt(4)) {
             o.contrast = *c / 100.0;
         }
+        o.squircle = fields.value(5).trimmed().compare(
+            QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
 
         windowOverrides.append(std::move(o));
     }
@@ -255,6 +257,11 @@ std::optional<QMatrix4x4> BBDX::WindowManager::getColorMatrixOverride(const KWin
     return BBDX::colorTransformMatrix(o->saturation.value_or(m_saturation),
                                       o->contrast.value_or(m_contrast),
                                       o->brightness.value_or(m_brightness));
+}
+
+bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    return o && o->squircle;
 }
 
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {

@@ -1137,10 +1137,40 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     vbo->bindArrays();
 
+    const BorderRadius cornerRadius = m_windowManager->getEffectiveBorderRadius(w);
+    const bool squircleMask = !cornerRadius.isNull() && m_windowManager->usesSquircleMask(w);
+    const auto drawFinalCached = [&]() {
+        const float modulation = opacity * opacity;
+        if (!squircleMask) {
+            m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
+            return;
+        }
+
+        const RectF transformedRect = RectF{
+            w->frameGeometry().x() + data.xTranslation(),
+            w->frameGeometry().y() + data.yTranslation(),
+            w->frameGeometry().width() * data.xScale(),
+            w->frameGeometry().height() * data.yScale(),
+        };
+        const RectF nativeBox = transformedRect
+                                    .scaled(viewport.scale())
+                                    .rounded()
+                                    .translated(-scaledBackgroundRect.topLeft());
+        const BorderRadius nativeCornerRadius = cornerRadius.scaled(viewport.scale()).rounded();
+        m_blurCache->drawSquircleCached(
+            viewport,
+            renderInfo,
+            vbo,
+            vertexCount,
+            modulation,
+            QVector4D(nativeBox.horizontalCenter(), nativeBox.verticalCenter(),
+                      nativeBox.width() * 0.5, nativeBox.height() * 0.5),
+            nativeCornerRadius.toVector());
+    };
+
     // BBDX: rate limited
     if (!renderInfo.cache->isFlushing()) {
-        const float modulation = opacity * opacity;
-        m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
+        drawFinalCached();
         return;
     }
 
@@ -1214,8 +1244,6 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 #else
     const QMatrix4x4 colorMatrix = colorMatrixOverride ? *colorMatrixOverride : m_colorMatrix;
 #endif
-    const float modulation = opacity * opacity;
-
 #if BBDX_NOT_NEEDED
     if (const BorderRadius cornerRadius = w->window()->borderRadius(); !cornerRadius.isNull()) {
         ShaderManager::instance()->pushShader(m_roundedOnscreenPass.shader.get());
@@ -1347,13 +1375,20 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         glDisable(GL_BLEND);
     }
 
-    if (const BorderRadius cornerRadius = m_windowManager->getEffectiveBorderRadius(w); !cornerRadius.isNull()) {
-        m_roundedCornersPass->apply(cornerRadius, backgroundRect, renderInfo, w, data, vbo, m_blurCache.get());
+    if (!cornerRadius.isNull() && !squircleMask) {
+        m_roundedCornersPass->apply(cornerRadius,
+                                    false,
+                                    backgroundRect,
+                                    renderInfo,
+                                    w,
+                                    data,
+                                    vbo,
+                                    m_blurCache.get());
     }
 
     // BBDX:
     BBDX::clearGLScissor();
-    m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
+    drawFinalCached();
 
     vbo->unbindArrays();
 }
