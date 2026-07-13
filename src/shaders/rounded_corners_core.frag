@@ -84,9 +84,6 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
         udCubic(q, shoulder0, shoulder1, shoulder2, shoulder3),
         min(sdSegment(q, shoulder3, tip0),
             udCubic(q, tip0, tip1, tip2, tip3)));
-    float baseDistance = sdSegment(q, vec2(0.0), shoulder0);
-    float distance = min(edgeDistance, baseDistance);
-
     bool inside = false;
     if (q.y >= 0.0 && q.y <= tip3.y) {
         float boundaryX;
@@ -100,7 +97,10 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
         }
         inside = q.x <= boundaryX;
     }
-    return inside ? -distance : distance;
+    // This arrow is unioned with the rounded body, so its base is deliberately
+    // open. Treating the base as another zero-distance edge leaves a 50% alpha
+    // line inside the union whenever the junction lands on a sample row.
+    return inside ? -edgeDistance : edgeDistance;
 }
 
 float sdfPointedTooltip(vec2 p, vec4 bounds, float radius)
