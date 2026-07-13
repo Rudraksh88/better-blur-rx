@@ -250,8 +250,8 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_shapeTexturePass.shader->uniformLocation("box");
     blurCache->m_shapeTexturePass.cornerRadiusLocation =
         blurCache->m_shapeTexturePass.shader->uniformLocation("cornerRadius");
-    blurCache->m_shapeTexturePass.squircleLocation =
-        blurCache->m_shapeTexturePass.shader->uniformLocation("squircle");
+    blurCache->m_shapeTexturePass.shapeLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("shape");
 
     return blurCache;
 }
@@ -471,7 +471,7 @@ void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
                                        float modulation,
                                        const QVector4D &box,
                                        const QVector4D &cornerRadius,
-                                       bool squircle) const {
+                                       int shape) const {
     const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
     auto *cacheEntry = renderInfo.cache.get();
     if (!cacheEntry) {
@@ -486,7 +486,7 @@ void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.modulationLocation, modulation);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.boxLocation, box);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.cornerRadiusLocation, cornerRadius);
-    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.squircleLocation, squircle ? 1 : 0);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.shapeLocation, shape);
     cacheEntry->cachedTexture()->bind();
     cacheEntry->flushed(m_paintData);
 

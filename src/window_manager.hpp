@@ -153,6 +153,9 @@ public:
     /** Whether the matching override requests a superellipse corner mask. */
     bool usesSquircleMask(const KWin::EffectWindow *w) const;
 
+    /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
+    bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;
+
     /**
      * Match an EffectWindow instance in the black/white list
      * XXX: should this also be moved to BBDX::Window?

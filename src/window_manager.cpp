@@ -264,6 +264,10 @@ bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
     return o && o->squircle;
 }
 
+bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
+    return w->window()->resourceClass() == QStringLiteral("svelte-dock-tooltip");
+}
+
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
     /**
      * TODO: convert to RegionF

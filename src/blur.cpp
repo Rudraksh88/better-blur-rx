@@ -1131,10 +1131,13 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     vbo->bindArrays();
 
     const BorderRadius cornerRadius = m_windowManager->getEffectiveBorderRadius(w);
-    const bool squircleMask = !cornerRadius.isNull() && m_windowManager->usesSquircleMask(w);
+    const bool pointedTooltipMask = m_windowManager->usesPointedTooltipMask(w);
+    const int shapeMask = pointedTooltipMask
+        ? 2
+        : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w) ? 1 : 0);
     const auto drawFinalCached = [&]() {
         const float modulation = opacity * opacity;
-        if (cornerRadius.isNull()) {
+        if (cornerRadius.isNull() && !pointedTooltipMask) {
             m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
             return;
         }
@@ -1149,7 +1152,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                                     .scaled(viewport.scale())
                                     .rounded()
                                     .translated(-scaledBackgroundRect.topLeft());
-        const BorderRadius nativeCornerRadius = cornerRadius.scaled(viewport.scale()).rounded();
+        const BorderRadius nativeCornerRadius = pointedTooltipMask
+            ? BorderRadius(5.0 * viewport.scale())
+            : cornerRadius.scaled(viewport.scale()).rounded();
         m_blurCache->drawShapedCached(
             viewport,
             renderInfo,
@@ -1159,7 +1164,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             QVector4D(nativeBox.horizontalCenter(), nativeBox.verticalCenter(),
                       nativeBox.width() * 0.5, nativeBox.height() * 0.5),
             nativeCornerRadius.toVector(),
-            squircleMask);
+            shapeMask);
     };
 
     // BBDX: rate limited

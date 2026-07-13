@@ -413,7 +413,8 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     // the full content bounds as the coarse region; the final mask pass clips
     // it to the configured squircle. Restrict this to undecorated surfaces so
     // decorations and content offsets never get silently folded together.
-    if (m_windowManager->usesSquircleMask(effectwindow())
+    if ((m_windowManager->usesSquircleMask(effectwindow())
+         || m_windowManager->usesPointedTooltipMask(effectwindow()))
         && !effectwindow()->hasDecoration()) {
         content = KWin::RegionF{};
         frame.reset();

@@ -227,7 +227,7 @@ private:
         int modulationLocation;
         int boxLocation;
         int cornerRadiusLocation;
-        int squircleLocation;
+        int shapeLocation;
     } m_shapeTexturePass;
 
     // pointer to the managing effect
@@ -325,7 +325,7 @@ public:
                           float modulation,
                           const QVector4D &box,
                           const QVector4D &cornerRadius,
-                          bool squircle) const;
+                          int shape) const;
 
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache
