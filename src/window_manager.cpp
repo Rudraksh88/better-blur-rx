@@ -27,6 +27,7 @@
 #include <QRegularExpressionMatch>
 #include <QString>
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -158,6 +159,15 @@ void BBDX::WindowManager::reconfigure() {
     m_brightness = config->brightness() / 100.0;
     m_saturation = config->saturation() / 100.0;
     m_contrast = config->contrast() / 100.0;
+
+    m_squircleExponent = std::clamp<qreal>(config->squircleExponent(), 2.0, 8.0);
+    m_pointedTooltipRadius = std::clamp<qreal>(config->pointedTooltipRadius(), 0.5, 64.0);
+    m_pointedTooltipArrowHeight = std::clamp<qreal>(config->pointedTooltipArrowHeight(), 1.0, 64.0);
+    m_pointedTooltipArrowHalf = std::clamp<qreal>(config->pointedTooltipArrowHalf(), 0.5, 64.0);
+    m_pointedTooltipShoulder = std::clamp<qreal>(config->pointedTooltipShoulder(), 0.0, 64.0);
+    m_pointedTooltipTipRadius = std::clamp<qreal>(config->pointedTooltipTipRadius(), 0.0, 32.0);
+    m_pointedTooltipInset = std::clamp<qreal>(config->pointedTooltipInset(), 0.0, 8.0);
+    m_pointedTooltipFeather = std::clamp<qreal>(config->pointedTooltipFeather(), 0.25, 4.0);
 
     // Parse window-specific overrides.
     // One row per line, tab separated:

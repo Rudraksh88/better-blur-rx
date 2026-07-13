@@ -7,6 +7,11 @@ uniform vec4 box;
 uniform vec4 cornerRadius;
 // 0 = rounded rectangle, 1 = squircle, 2 = pointed tooltip
 uniform int shape;
+uniform float squircleExponent;
+// x = arrow height, y = arrow half-width, z = shoulder, w = tip radius
+uniform vec4 tooltipGeometry;
+// x = inset, y = derivative-AA feather
+uniform vec4 tooltipStyle;
 uniform float modulation;
 
 varying vec2 uv;
@@ -57,17 +62,20 @@ float cubicXAtY(float y, vec2 p0, vec2 p1, vec2 p2, vec2 p3)
     return cubicPoint(p0, p1, p2, p3, (low + high) * 0.5).x;
 }
 
-float sdfTooltipArrow(vec2 p, float scale)
+float sdfTooltipArrow(vec2 p, vec4 geometry)
 {
-    // These are the exact logical coordinates used by append_tooltip_path().
-    vec2 shoulder0 = vec2(10.3, 0.0) * scale;
-    vec2 shoulder1 = vec2(7.6, 0.0) * scale;
-    vec2 shoulder2 = vec2(7.0, 1.4) * scale;
-    vec2 shoulder3 = vec2(5.3, 2.2) * scale;
-    vec2 tip0 = vec2(1.84, 6.4) * scale;
-    vec2 tip1 = vec2(1.36, 7.44) * scale;
-    vec2 tip2 = vec2(0.72, 8.0) * scale;
-    vec2 tip3 = vec2(0.0, 8.0) * scale;
+    float arrowHeight = geometry.x;
+    float arrowHalf = geometry.y;
+    float shoulder = geometry.z;
+    float tipRadius = geometry.w;
+    vec2 shoulder0 = vec2(arrowHalf + shoulder, 0.0);
+    vec2 shoulder1 = vec2(arrowHalf + shoulder * 0.325, 0.0);
+    vec2 shoulder2 = vec2(arrowHalf + shoulder * 0.175, shoulder * 0.35);
+    vec2 shoulder3 = vec2(arrowHalf - shoulder * 0.25, shoulder * 0.55);
+    vec2 tip0 = vec2(tipRadius * 1.15, arrowHeight - tipRadius);
+    vec2 tip1 = vec2(tipRadius * 0.85, arrowHeight - tipRadius * 0.35);
+    vec2 tip2 = vec2(tipRadius * 0.45, arrowHeight);
+    vec2 tip3 = vec2(0.0, arrowHeight);
 
     vec2 q = vec2(abs(p.x), p.y);
     float edgeDistance = min(
@@ -95,15 +103,14 @@ float sdfTooltipArrow(vec2 p, float scale)
 
 float sdfPointedTooltip(vec2 p, vec4 bounds, float radius)
 {
-    float scale = radius / 5.0;
-    float inset = scale;
-    float arrowHeight = 8.0 * scale;
+    float inset = tooltipStyle.x;
+    float arrowHeight = tooltipGeometry.x;
     vec2 bodyCenter = vec2(bounds.x, bounds.y - arrowHeight * 0.5);
     vec2 bodyHalf = max(bounds.zw - vec2(inset, inset + arrowHeight * 0.5), vec2(0.0));
     float body = sdfRoundedBox(p, bodyCenter, bodyHalf, vec4(radius));
 
     float bodyBottom = bounds.y + bounds.w - inset - arrowHeight;
-    float arrow = sdfTooltipArrow(p - vec2(bounds.x, bodyBottom), scale);
+    float arrow = sdfTooltipArrow(p - vec2(bounds.x, bodyBottom), tooltipGeometry);
     return min(body, arrow);
 }
 
@@ -117,7 +124,7 @@ void main(void)
     vec2 q = abs(vertex - box.xy) - box.zw + vec2(radius);
     vec2 outside = max(q, vec2(0.0));
     // K=0.8 cubic midpoint maps to a superellipse exponent of about 3.106.
-    const float squirclePower = 3.1;
+    float squirclePower = squircleExponent;
     float squircleDistance = min(max(q.x, q.y), 0.0)
         + pow(pow(outside.x, squirclePower) + pow(outside.y, squirclePower), 1.0 / squirclePower)
         - radius;
@@ -127,7 +134,7 @@ void main(void)
             ? squircleDistance
             : sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius));
     float df = fwidth(f);
-    float feather = shape == 1 ? 1.5 : 1.0;
+    float feather = shape == 1 ? 1.5 : (shape == 2 ? tooltipStyle.y : 1.0);
     float alpha = clamp(0.5 - f / (df * feather), 0.0, 1.0);
 
     gl_FragColor = fragColor * alpha * modulation;

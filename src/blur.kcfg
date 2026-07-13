@@ -55,6 +55,34 @@ class3</default>
         <entry name="WindowOverrides" type="String">
             <default></default>
         </entry>
+        <!-- Runtime SDF geometry owned by svelte-dock. These remain KConfig
+             values so changing an existing shape never requires recompiling
+             the effect; the dock updates them atomically before requesting an
+             effect reconfigure. -->
+        <entry name="SquircleExponent" type="Double">
+            <default>3.1</default>
+        </entry>
+        <entry name="PointedTooltipRadius" type="Double">
+            <default>5.0</default>
+        </entry>
+        <entry name="PointedTooltipArrowHeight" type="Double">
+            <default>8.0</default>
+        </entry>
+        <entry name="PointedTooltipArrowHalf" type="Double">
+            <default>6.3</default>
+        </entry>
+        <entry name="PointedTooltipShoulder" type="Double">
+            <default>4.0</default>
+        </entry>
+        <entry name="PointedTooltipTipRadius" type="Double">
+            <default>1.6</default>
+        </entry>
+        <entry name="PointedTooltipInset" type="Double">
+            <default>1.0</default>
+        </entry>
+        <entry name="PointedTooltipFeather" type="Double">
+            <default>1.0</default>
+        </entry>
         <!-- Refraction -->
         <entry name="RefractionStrength" type="Int">
             <default>0</default>

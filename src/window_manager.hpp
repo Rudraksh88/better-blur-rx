@@ -91,6 +91,17 @@ private:
     qreal m_saturation{1.0};
     qreal m_contrast{1.0};
 
+    // Runtime shape parameters. The dock owns the persisted source values;
+    // Better Blur consumes them as uniforms on the next effect reconfigure.
+    qreal m_squircleExponent{3.1};
+    qreal m_pointedTooltipRadius{5.0};
+    qreal m_pointedTooltipArrowHeight{8.0};
+    qreal m_pointedTooltipArrowHalf{6.3};
+    qreal m_pointedTooltipShoulder{4.0};
+    qreal m_pointedTooltipTipRadius{1.6};
+    qreal m_pointedTooltipInset{1.0};
+    qreal m_pointedTooltipFeather{1.0};
+
     // window-specific overrides, first match wins
     QList<WindowOverride> m_windowOverrides{};
 
@@ -155,6 +166,15 @@ public:
 
     /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
     bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;
+
+    qreal squircleExponent() const { return m_squircleExponent; }
+    qreal pointedTooltipRadius() const { return m_pointedTooltipRadius; }
+    qreal pointedTooltipArrowHeight() const { return m_pointedTooltipArrowHeight; }
+    qreal pointedTooltipArrowHalf() const { return m_pointedTooltipArrowHalf; }
+    qreal pointedTooltipShoulder() const { return m_pointedTooltipShoulder; }
+    qreal pointedTooltipTipRadius() const { return m_pointedTooltipTipRadius; }
+    qreal pointedTooltipInset() const { return m_pointedTooltipInset; }
+    qreal pointedTooltipFeather() const { return m_pointedTooltipFeather; }
 
     /**
      * Match an EffectWindow instance in the black/white list

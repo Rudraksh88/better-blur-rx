@@ -228,6 +228,9 @@ private:
         int boxLocation;
         int cornerRadiusLocation;
         int shapeLocation;
+        int squircleExponentLocation;
+        int tooltipGeometryLocation;
+        int tooltipStyleLocation;
     } m_shapeTexturePass;
 
     // pointer to the managing effect
@@ -325,6 +328,9 @@ public:
                           float modulation,
                           const QVector4D &box,
                           const QVector4D &cornerRadius,
+                          float squircleExponent,
+                          const QVector4D &tooltipGeometry,
+                          const QVector4D &tooltipStyle,
                           int shape) const;
 
     /**

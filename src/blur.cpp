@@ -1153,8 +1153,18 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                                     .rounded()
                                     .translated(-scaledBackgroundRect.topLeft());
         const BorderRadius nativeCornerRadius = pointedTooltipMask
-            ? BorderRadius(5.0 * viewport.scale())
+            ? BorderRadius(m_windowManager->pointedTooltipRadius() * viewport.scale())
             : cornerRadius.scaled(viewport.scale()).rounded();
+        const QVector4D tooltipGeometry(
+            m_windowManager->pointedTooltipArrowHeight() * viewport.scale(),
+            m_windowManager->pointedTooltipArrowHalf() * viewport.scale(),
+            m_windowManager->pointedTooltipShoulder() * viewport.scale(),
+            m_windowManager->pointedTooltipTipRadius() * viewport.scale());
+        const QVector4D tooltipStyle(
+            m_windowManager->pointedTooltipInset() * viewport.scale(),
+            m_windowManager->pointedTooltipFeather(),
+            0.0,
+            0.0);
         m_blurCache->drawShapedCached(
             viewport,
             renderInfo,
@@ -1164,6 +1174,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             QVector4D(nativeBox.horizontalCenter(), nativeBox.verticalCenter(),
                       nativeBox.width() * 0.5, nativeBox.height() * 0.5),
             nativeCornerRadius.toVector(),
+            m_windowManager->squircleExponent(),
+            tooltipGeometry,
+            tooltipStyle,
             shapeMask);
     };
 
