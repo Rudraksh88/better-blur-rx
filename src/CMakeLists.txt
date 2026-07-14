@@ -18,6 +18,7 @@ kconfig_add_kcfg_files(better_blur_dx_SOURCES
 if(BBDX_X11)
     add_library(better_blur_dx MODULE ${better_blur_dx_SOURCES})
     target_link_libraries(better_blur_dx PRIVATE
+        Qt6::DBus
         KDecoration3::KDecoration
         KF6::ConfigGui
         KWinX11::kwin
@@ -32,6 +33,7 @@ if(BBDX_X11)
 else()
     add_library(better_blur_dx MODULE ${better_blur_dx_SOURCES})
     target_link_libraries(better_blur_dx PRIVATE
+        Qt6::DBus
         KDecoration3::KDecoration
         KF6::ConfigGui
         KWin::kwin

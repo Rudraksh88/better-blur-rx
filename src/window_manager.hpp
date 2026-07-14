@@ -101,6 +101,7 @@ private:
     qreal m_pointedTooltipTipRadius{1.6};
     qreal m_pointedTooltipInset{1.0};
     qreal m_pointedTooltipFeather{1.0};
+    std::optional<qreal> m_previewPlateBlurRadius{};
 
     // window-specific overrides, first match wins
     QList<WindowOverride> m_windowOverrides{};
@@ -131,6 +132,17 @@ public:
      * reconfigure from BlurConfig
      */
     void reconfigure();
+
+    /** Apply one validated, non-persistent dock SDF preview snapshot. */
+    bool previewDockSurfaces(qreal plateBlurRadius,
+                             qreal squircleExponent,
+                             qreal tooltipRadius,
+                             qreal tooltipArrowHeight,
+                             qreal tooltipArrowHalf,
+                             qreal tooltipShoulder,
+                             qreal tooltipTipRadius,
+                             qreal tooltipInset,
+                             qreal tooltipFeather);
 
     /**
      * Refresh maximized state of a window / of all windows

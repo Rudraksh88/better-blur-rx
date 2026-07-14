@@ -89,6 +89,7 @@ struct BlurEffectData
 class BlurEffect : public KWin::Effect
 {
     Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.kde.KWin.Effects.BetterBlurDX")
 
 public:
     BlurEffect();
@@ -125,6 +126,16 @@ public:
     bool blocksDirectScanout() const override;
 
 public Q_SLOTS:
+    /// Update dock SDF geometry in memory for frame-grade Settings previews.
+    Q_SCRIPTABLE bool previewDockSurfaces(double plateBlurRadius,
+                                          double squircleExponent,
+                                          double tooltipRadius,
+                                          double tooltipArrowHeight,
+                                          double tooltipArrowHalf,
+                                          double tooltipShoulder,
+                                          double tooltipTipRadius,
+                                          double tooltipInset,
+                                          double tooltipFeather);
     void slotWindowAdded(KWin::EffectWindow *w);
     void slotWindowDeleted(KWin::EffectWindow *w);
     void slotViewRemoved(KWin::RenderView *view);

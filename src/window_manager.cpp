@@ -28,6 +28,7 @@
 #include <QString>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -168,6 +169,7 @@ void BBDX::WindowManager::reconfigure() {
     m_pointedTooltipTipRadius = std::clamp<qreal>(config->pointedTooltipTipRadius(), 0.0, 32.0);
     m_pointedTooltipInset = std::clamp<qreal>(config->pointedTooltipInset(), 0.0, 8.0);
     m_pointedTooltipFeather = std::clamp<qreal>(config->pointedTooltipFeather(), 0.25, 4.0);
+    m_previewPlateBlurRadius.reset();
 
     // Parse window-specific overrides.
     // One row per line, tab separated:
@@ -232,6 +234,47 @@ void BBDX::WindowManager::reconfigure() {
     for (const auto &[_, window] : m_windows) {
         window->reconfigure();
     }
+}
+
+bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
+                                               qreal squircleExponent,
+                                               qreal tooltipRadius,
+                                               qreal tooltipArrowHeight,
+                                               qreal tooltipArrowHalf,
+                                               qreal tooltipShoulder,
+                                               qreal tooltipTipRadius,
+                                               qreal tooltipInset,
+                                               qreal tooltipFeather) {
+    const qreal values[] = {
+        plateBlurRadius,
+        squircleExponent,
+        tooltipRadius,
+        tooltipArrowHeight,
+        tooltipArrowHalf,
+        tooltipShoulder,
+        tooltipTipRadius,
+        tooltipInset,
+        tooltipFeather,
+    };
+    if (std::ranges::any_of(values, [](qreal value) { return !std::isfinite(value); })) {
+        return false;
+    }
+
+    m_previewPlateBlurRadius = std::clamp<qreal>(plateBlurRadius, 1.0, 64.0);
+    m_squircleExponent = std::clamp<qreal>(squircleExponent, 2.0, 8.0);
+    m_pointedTooltipRadius = std::clamp<qreal>(tooltipRadius, 0.5, 32.0);
+    m_pointedTooltipArrowHeight = std::clamp<qreal>(tooltipArrowHeight, 1.0, 32.0);
+    m_pointedTooltipArrowHalf = std::clamp<qreal>(tooltipArrowHalf, 0.5, 32.0);
+    m_pointedTooltipShoulder = std::clamp<qreal>(
+        tooltipShoulder, 0.0, m_pointedTooltipArrowHalf * 0.8);
+    m_pointedTooltipTipRadius = std::clamp<qreal>(
+        tooltipTipRadius,
+        0.0,
+        std::min(m_pointedTooltipArrowHeight * 0.3, m_pointedTooltipArrowHalf * 0.3));
+    m_pointedTooltipInset = std::clamp<qreal>(tooltipInset, 0.0, 8.0);
+    m_pointedTooltipFeather = std::clamp<qreal>(tooltipFeather, 0.25, 4.0);
+    repaintAllBlurredWindows();
+    return true;
 }
 
 bool BBDX::WindowManager::overrideMatchesWindow(const WindowOverride &o, const KWin::EffectWindow *w) const {
@@ -438,6 +481,10 @@ void BBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::o
 }
 
 KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::EffectWindow *w) const {
+    if (m_previewPlateBlurRadius
+        && w->window()->resourceClass() == QStringLiteral("svelte-dock-plate")) {
+        return KWin::BorderRadius(*m_previewPlateBlurRadius);
+    }
     const auto window = findWindow(w);
 
     // unmanaged windows can never be force blurred

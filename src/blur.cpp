@@ -53,6 +53,7 @@
 #include <wayland_server.h>
 #endif
 
+#include <QDBusConnection>
 #include <QGuiApplication>
 #include <QMatrix4x4>
 #include <QScreen>
@@ -240,10 +241,21 @@ BlurEffect::BlurEffect()
     }
 
     m_valid = true;
+
+    const bool previewRegistered = QDBusConnection::sessionBus().registerObject(
+        QStringLiteral("/org/kde/KWin/Effects/BetterBlurDX"),
+        this,
+        QDBusConnection::ExportScriptableSlots);
+    if (!previewRegistered) {
+        qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX
+                             << "Could not register dock surface preview D-Bus object";
+    }
 }
 
 BlurEffect::~BlurEffect()
 {
+    QDBusConnection::sessionBus().unregisterObject(
+        QStringLiteral("/org/kde/KWin/Effects/BetterBlurDX"));
 #if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     // When compositing is restarted, avoid removing the manager immediately.
     if (s_blurManager) {
@@ -256,6 +268,28 @@ BlurEffect::~BlurEffect()
 #elif KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 91)
     waylandServer()->backgroundEffectManager()->removeBlurCapability();
 #endif
+}
+
+bool BlurEffect::previewDockSurfaces(double plateBlurRadius,
+                                     double squircleExponent,
+                                     double tooltipRadius,
+                                     double tooltipArrowHeight,
+                                     double tooltipArrowHalf,
+                                     double tooltipShoulder,
+                                     double tooltipTipRadius,
+                                     double tooltipInset,
+                                     double tooltipFeather)
+{
+    return m_windowManager && m_windowManager->previewDockSurfaces(
+        plateBlurRadius,
+        squircleExponent,
+        tooltipRadius,
+        tooltipArrowHeight,
+        tooltipArrowHalf,
+        tooltipShoulder,
+        tooltipTipRadius,
+        tooltipInset,
+        tooltipFeather);
 }
 
 void BlurEffect::initBlurStrengthValues()
