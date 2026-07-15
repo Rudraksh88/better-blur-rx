@@ -222,6 +222,11 @@ public:
     bool windowIsBlurred(const KWin::EffectWindow *w) const;
 
     /**
+     * Check if this window is a Plasma surface using its requested blur mask.
+     */
+    bool windowIsPlasmaSurface(const KWin::EffectWindow *w) const;
+
+    /**
      * Get the final blur region for a window, set in content/frame.
      *
      * Forwarded to BBDX::Window::getFinalBlurRegion() if w is managed

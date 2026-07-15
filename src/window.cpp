@@ -34,10 +34,23 @@ BBDX::Window::Window(BBDX::WindowManager *wm, KWin::EffectWindow *w) {
     slotWindowFrameGeometryChanged();
     connect(w, &KWin::EffectWindow::minimizedChanged, this, &BBDX::Window::slotMinimizedChanged);
     connect(w, &KWin::EffectWindow::windowFullScreenChanged, this, &BBDX::Window::slotWindowFullScreenChanged);
-    connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, &BBDX::Window::slotWindowFrameGeometryChanged);
+    connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, [this]() {
+        slotWindowFrameGeometryChanged();
+
+        // SDF overrides derive their coarse blur bounds from the live
+        // contentsRect(), even when the client blur region itself is unchanged.
+        // Keep BackgroundEffectItem in lockstep with compositor geometry instead
+        // of waiting for another blur-protocol commit from the client.
+        if (!m_shouldForceBlur
+            && (m_windowManager->usesSquircleMask(m_effectwindow)
+                || m_windowManager->usesPointedTooltipMask(m_effectwindow))) {
+            triggerBlurRegionUpdate();
+        }
+    });
     connect(w, &KWin::EffectWindow::windowStartUserMovedResized, this, &BBDX::Window::slotWindowStartUserMovedResized);
     connect(w, &KWin::EffectWindow::windowFinishUserMovedResized, this, &BBDX::Window::slotWindowFinishUserMovedResized);
     connect(w, &KWin::EffectWindow::windowOpacityChanged, this, &BBDX::Window::slotWindowOpacityChanged);
+    connect(w->window(), &KWin::Window::windowClassChanged, this, &BBDX::Window::reconfigure);
 }
 
 void BBDX::Window::slotMinimizedChanged() {
@@ -338,6 +351,15 @@ bool BBDX::Window::neverForceBlur() const {
 bool BBDX::Window::shouldForceBlur() const {
     if (neverForceBlur())
         return false;
+
+    // The dock and Settings share one process name, which is intentionally
+    // blacklisted to protect the dock's giant transparent input surface. The
+    // Settings toplevel has a dedicated app-id, so put only that real window
+    // on the regular compositor-owned force-blur geometry path.
+    if (effectwindow()->window()->resourceClass()
+        == QStringLiteral("svelte-dock-settings-surface")) {
+        return true;
+    }
 
     return m_windowManager->shouldForceBlurWindowClass(effectwindow());
 }

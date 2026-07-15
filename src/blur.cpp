@@ -56,6 +56,7 @@
 #include <QDBusConnection>
 #include <QGuiApplication>
 #include <QMatrix4x4>
+#include <QPointer>
 #include <QScreen>
 #include <QTime>
 #include <QTimer>
@@ -383,6 +384,8 @@ void BlurEffect::reconfigure(ReconfigureFlags flags)
 
 void BlurEffect::updateBlurRegion(EffectWindow *w)
 {
+    const RegionF previousBlurRegion = blurRegion(w);
+
     std::optional<RegionF> content;
     std::optional<RegionF> frame;
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
@@ -490,6 +493,23 @@ void BlurEffect::updateBlurRegion(EffectWindow *w)
             m_windows.erase(it);
         }
     }
+
+    const RegionF currentBlurRegion = blurRegion(w);
+    if (currentBlurRegion != previousBlurRegion) {
+        // BackgroundEffectItem only tracks the blur's bounding rectangle. A
+        // Plasma SVG mask can change its exact region without changing those
+        // bounds, so the surface's small rectangular damage would otherwise
+        // be the only part of the new mask that gets composited.
+        //
+        // Clearing cached coverage also handles a region whose bounds move
+        // without changing size: its texture must then be filled from the new
+        // background origin instead of being treated as already cached.
+        m_windowManager->invalidateBlurCache(
+            w,
+            static_cast<uint>(BlurCacheInvalidationFlag::REGION),
+            "Blur region changed");
+        w->addRepaintFull();
+    }
 }
 
 void BlurEffect::slotWindowAdded(EffectWindow *w)
@@ -500,6 +520,38 @@ void BlurEffect::slotWindowAdded(EffectWindow *w)
         windowBlurChangedConnections[w] = connect(surf, &SurfaceInterface::blurChanged, this, [this, w]() {
             if (w) {
                 updateBlurRegion(w);
+
+                // SurfaceInterface emits blurChanged while applying the
+                // surface state, before KWin has handled the completed commit
+                // and updated the window geometry. Plasma SVG masks can
+                // therefore be clipped to the previous contentsRect here.
+                // Resync the BackgroundEffectItem after the commit so its
+                // effect bounds and repaint cover the final surface geometry.
+                // Forced dock SDF masks don't qualify as Plasma surfaces.
+                if (m_windowManager->windowIsPlasmaSurface(w)) {
+                    const QPointer<EffectWindow> window(w);
+                    const RectF boundsAtBlurSignal = blurRegion(w).boundingRect();
+                    const RectF frameAtBlurSignal = w->frameGeometry();
+
+                    QTimer::singleShot(0, this, [this, window, boundsAtBlurSignal, frameAtBlurSignal]() {
+                        if (!window || !m_windowManager->windowIsPlasmaSurface(window.data())) {
+                            return;
+                        }
+
+                        updateBlurRegion(window.data());
+
+                        const RectF committedBounds = blurRegion(window.data()).boundingRect();
+                        const RectF committedFrame = window->frameGeometry();
+                        if (committedBounds != boundsAtBlurSignal || committedFrame != frameAtBlurSignal) {
+                            qCDebug(KWIN_BLUR) << BBDX::LOG_PREFIX
+                                                << "Resynced Plasma blur after surface commit:" << window->windowClass() << "\n"
+                                                << "Frame:" << frameAtBlurSignal << "->" << committedFrame << "\n"
+                                                << "Blur bounds:" << boundsAtBlurSignal << "->" << committedBounds;
+                        }
+
+                        window->addRepaintFull();
+                    });
+                }
             }
         });
 #if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)

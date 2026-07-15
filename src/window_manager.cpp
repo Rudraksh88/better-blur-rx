@@ -472,6 +472,16 @@ bool BBDX::WindowManager::windowIsBlurred(const KWin::EffectWindow *w) const {
     return window->isBlurred();
 }
 
+bool BBDX::WindowManager::windowIsPlasmaSurface(const KWin::EffectWindow *w) const {
+    const auto window = findWindow(w);
+
+    if (!window) {
+        return false;
+    }
+
+    return window->isPlasmaSurface();
+}
+
 void BBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) const {
     const auto window = findWindow(w);
     if (!window)
