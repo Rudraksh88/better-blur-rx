@@ -101,7 +101,7 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
     return inside ? -edgeDistance : edgeDistance;
 }
 
-float sdfPointedTooltip(vec2 p, vec4 bounds, float radius)
+vec2 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
 {
     float inset = tooltipStyle.x;
     float arrowHeight = tooltipGeometry.x;
@@ -111,7 +111,13 @@ float sdfPointedTooltip(vec2 p, vec4 bounds, float radius)
 
     float bodyBottom = bounds.y + bounds.w - inset - arrowHeight;
     float arrow = sdfTooltipArrow(p - vec2(bounds.x, bodyBottom), tooltipGeometry);
-    return min(body, arrow);
+    return vec2(body, arrow);
+}
+
+float antialiasedCoverage(float distance, float feather)
+{
+    float width = max(fwidth(distance) * feather, 0.0001);
+    return clamp(0.5 - distance / width, 0.0, 1.0);
 }
 
 void main(void)
@@ -128,14 +134,20 @@ void main(void)
     float squircleDistance = min(max(q.x, q.y), 0.0)
         + pow(pow(outside.x, squirclePower) + pow(outside.y, squirclePower), 1.0 / squirclePower)
         - radius;
-    float f = shape == 2
-        ? sdfPointedTooltip(vertex, box, cornerRadius.x)
-        : (shape == 1
+    float alpha;
+    if (shape == 2) {
+        vec2 tooltipParts = sdfPointedTooltipParts(vertex, box, cornerRadius.x);
+        float bodyAlpha = antialiasedCoverage(tooltipParts.x, tooltipStyle.y);
+        float arrowAlpha = antialiasedCoverage(tooltipParts.y, tooltipStyle.y);
+        // Union coverage once in this fragment. max() neither double-composites
+        // the overlap nor exposes a derivative seam where the primitives meet.
+        alpha = max(bodyAlpha, arrowAlpha);
+    } else {
+        float f = shape == 1
             ? squircleDistance
-            : sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius));
-    float df = fwidth(f);
-    float feather = shape == 1 ? 1.5 : (shape == 2 ? tooltipStyle.y : 1.0);
-    float alpha = clamp(0.5 - f / (df * feather), 0.0, 1.0);
+            : sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius);
+        alpha = antialiasedCoverage(f, shape == 1 ? 1.5 : 1.0);
+    }
 
     gl_FragColor = fragColor * alpha * modulation;
 }

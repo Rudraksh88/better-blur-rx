@@ -18,6 +18,7 @@
 
 #include <QEasingCurve>
 #include <QLoggingCategory>
+#include <QTimer>
 #include <QVariant>
 #include <QtNumeric>
 #include <QtPreprocessorSupport>
@@ -37,14 +38,21 @@ BBDX::Window::Window(BBDX::WindowManager *wm, KWin::EffectWindow *w) {
     connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, [this]() {
         slotWindowFrameGeometryChanged();
 
-        // SDF overrides derive their coarse blur bounds from the live
-        // contentsRect(), even when the client blur region itself is unchanged.
-        // Keep BackgroundEffectItem in lockstep with compositor geometry instead
-        // of waiting for another blur-protocol commit from the client.
-        if (!m_shouldForceBlur
-            && (m_windowManager->usesSquircleMask(m_effectwindow)
-                || m_windowManager->usesPointedTooltipMask(m_effectwindow))) {
-            triggerBlurRegionUpdate();
+        const bool sdfOverride = m_windowManager->usesSquircleMask(m_effectwindow)
+            || m_windowManager->usesPointedTooltipMask(m_effectwindow);
+        if (sdfOverride) {
+            // The frame-geometry signal can arrive while KWin is still
+            // committing the new contentsRect. An immediate region update then
+            // leaves BackgroundEffectItem clipped to the previous tooltip body
+            // height, outside of which the arrow receives no blur at all.
+            // Resync on the next event-loop turn after both geometries agree.
+            QTimer::singleShot(0, this, [this]() {
+                if (m_windowManager->usesSquircleMask(m_effectwindow)
+                    || m_windowManager->usesPointedTooltipMask(m_effectwindow)) {
+                    triggerBlurRegionUpdate();
+                    m_effectwindow->addRepaintFull();
+                }
+            });
         }
     });
     connect(w, &KWin::EffectWindow::windowStartUserMovedResized, this, &BBDX::Window::slotWindowStartUserMovedResized);
