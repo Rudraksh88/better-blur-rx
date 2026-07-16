@@ -162,6 +162,7 @@ void BBDX::WindowManager::reconfigure() {
     m_contrast = config->contrast() / 100.0;
 
     m_squircleExponent = std::clamp<qreal>(config->squircleExponent(), 2.0, 8.0);
+    m_plateMaskInset = std::clamp<qreal>(config->plateMaskInset(), 0.0, 8.0);
     m_pointedTooltipRadius = std::clamp<qreal>(config->pointedTooltipRadius(), 0.5, 64.0);
     m_pointedTooltipArrowHeight = std::clamp<qreal>(config->pointedTooltipArrowHeight(), 1.0, 64.0);
     m_pointedTooltipArrowHalf = std::clamp<qreal>(config->pointedTooltipArrowHalf(), 0.5, 64.0);
@@ -237,6 +238,7 @@ void BBDX::WindowManager::reconfigure() {
 }
 
 bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
+                                               qreal plateMaskInset,
                                                qreal squircleExponent,
                                                qreal tooltipRadius,
                                                qreal tooltipArrowHeight,
@@ -247,6 +249,7 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
                                                qreal tooltipFeather) {
     const qreal values[] = {
         plateBlurRadius,
+        plateMaskInset,
         squircleExponent,
         tooltipRadius,
         tooltipArrowHeight,
@@ -261,6 +264,7 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
     }
 
     m_previewPlateBlurRadius = std::clamp<qreal>(plateBlurRadius, 1.0, 64.0);
+    m_plateMaskInset = std::clamp<qreal>(plateMaskInset, 0.0, 8.0);
     m_squircleExponent = std::clamp<qreal>(squircleExponent, 2.0, 8.0);
     m_pointedTooltipRadius = std::clamp<qreal>(tooltipRadius, 0.5, 32.0);
     m_pointedTooltipArrowHeight = std::clamp<qreal>(tooltipArrowHeight, 1.0, 32.0);
@@ -319,6 +323,10 @@ bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
 
 bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
     return w->window()->resourceClass() == QStringLiteral("svelte-dock-tooltip");
+}
+
+bool BBDX::WindowManager::usesDockPlateMask(const KWin::EffectWindow *w) const {
+    return w->window()->resourceClass() == QStringLiteral("svelte-dock-plate");
 }
 
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {

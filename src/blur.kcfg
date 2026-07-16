@@ -62,6 +62,9 @@ class3</default>
         <entry name="SquircleExponent" type="Double">
             <default>3.1</default>
         </entry>
+        <entry name="PlateMaskInset" type="Double">
+            <default>0.0</default>
+        </entry>
         <entry name="PointedTooltipRadius" type="Double">
             <default>5.0</default>
         </entry>

@@ -254,6 +254,8 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_shapeTexturePass.shader->uniformLocation("shape");
     blurCache->m_shapeTexturePass.squircleExponentLocation =
         blurCache->m_shapeTexturePass.shader->uniformLocation("squircleExponent");
+    blurCache->m_shapeTexturePass.shapeInsetLocation =
+        blurCache->m_shapeTexturePass.shader->uniformLocation("shapeInset");
     blurCache->m_shapeTexturePass.tooltipGeometryLocation =
         blurCache->m_shapeTexturePass.shader->uniformLocation("tooltipGeometry");
     blurCache->m_shapeTexturePass.tooltipStyleLocation =
@@ -478,6 +480,7 @@ void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
                                        const QVector4D &box,
                                        const QVector4D &cornerRadius,
                                        float squircleExponent,
+                                       float shapeInset,
                                        const QVector4D &tooltipGeometry,
                                        const QVector4D &tooltipStyle,
                                        int shape) const {
@@ -497,6 +500,7 @@ void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.cornerRadiusLocation, cornerRadius);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.shapeLocation, shape);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.squircleExponentLocation, squircleExponent);
+    m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.shapeInsetLocation, shapeInset);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.tooltipGeometryLocation, tooltipGeometry);
     m_shapeTexturePass.shader->setUniform(m_shapeTexturePass.tooltipStyleLocation, tooltipStyle);
     cacheEntry->cachedTexture()->bind();

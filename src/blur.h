@@ -128,6 +128,7 @@ public:
 public Q_SLOTS:
     /// Update dock SDF geometry in memory for frame-grade Settings previews.
     Q_SCRIPTABLE bool previewDockSurfaces(double plateBlurRadius,
+                                          double plateMaskInset,
                                           double squircleExponent,
                                           double tooltipRadius,
                                           double tooltipArrowHeight,

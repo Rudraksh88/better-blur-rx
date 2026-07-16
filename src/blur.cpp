@@ -272,6 +272,7 @@ BlurEffect::~BlurEffect()
 }
 
 bool BlurEffect::previewDockSurfaces(double plateBlurRadius,
+                                     double plateMaskInset,
                                      double squircleExponent,
                                      double tooltipRadius,
                                      double tooltipArrowHeight,
@@ -283,6 +284,7 @@ bool BlurEffect::previewDockSurfaces(double plateBlurRadius,
 {
     return m_windowManager && m_windowManager->previewDockSurfaces(
         plateBlurRadius,
+        plateMaskInset,
         squircleExponent,
         tooltipRadius,
         tooltipArrowHeight,
@@ -1261,6 +1263,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                       nativeBox.width() * 0.5, nativeBox.height() * 0.5),
             nativeCornerRadius.toVector(),
             m_windowManager->squircleExponent(),
+            (m_windowManager->usesDockPlateMask(w)
+                ? m_windowManager->plateMaskInset() * viewport.scale()
+                : 0.0),
             tooltipGeometry,
             tooltipStyle,
             shapeMask);

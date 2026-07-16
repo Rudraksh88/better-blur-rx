@@ -229,6 +229,7 @@ private:
         int cornerRadiusLocation;
         int shapeLocation;
         int squircleExponentLocation;
+        int shapeInsetLocation;
         int tooltipGeometryLocation;
         int tooltipStyleLocation;
     } m_shapeTexturePass;
@@ -329,6 +330,7 @@ public:
                           const QVector4D &box,
                           const QVector4D &cornerRadius,
                           float squircleExponent,
+                          float shapeInset,
                           const QVector4D &tooltipGeometry,
                           const QVector4D &tooltipStyle,
                           int shape) const;

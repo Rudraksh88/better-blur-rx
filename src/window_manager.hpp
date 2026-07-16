@@ -94,6 +94,7 @@ private:
     // Runtime shape parameters. The dock owns the persisted source values;
     // Better Blur consumes them as uniforms on the next effect reconfigure.
     qreal m_squircleExponent{3.1};
+    qreal m_plateMaskInset{0.0};
     qreal m_pointedTooltipRadius{5.0};
     qreal m_pointedTooltipArrowHeight{8.0};
     qreal m_pointedTooltipArrowHalf{6.3};
@@ -135,6 +136,7 @@ public:
 
     /** Apply one validated, non-persistent dock SDF preview snapshot. */
     bool previewDockSurfaces(qreal plateBlurRadius,
+                             qreal plateMaskInset,
                              qreal squircleExponent,
                              qreal tooltipRadius,
                              qreal tooltipArrowHeight,
@@ -179,7 +181,11 @@ public:
     /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
     bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;
 
+    /** Whether this is the dock plate governed by the plate-only SDF inset. */
+    bool usesDockPlateMask(const KWin::EffectWindow *w) const;
+
     qreal squircleExponent() const { return m_squircleExponent; }
+    qreal plateMaskInset() const { return m_plateMaskInset; }
     qreal pointedTooltipRadius() const { return m_pointedTooltipRadius; }
     qreal pointedTooltipArrowHeight() const { return m_pointedTooltipArrowHeight; }
     qreal pointedTooltipArrowHalf() const { return m_pointedTooltipArrowHalf; }

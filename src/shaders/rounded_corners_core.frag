@@ -8,6 +8,7 @@ uniform vec4 cornerRadius;
 // 0 = rounded rectangle, 1 = squircle, 2 = pointed tooltip
 uniform int shape;
 uniform float squircleExponent;
+uniform float shapeInset;
 // x = arrow height, y = arrow half-width, z = shoulder, w = tip radius
 uniform vec4 tooltipGeometry;
 // x = inset, y = derivative-AA feather
@@ -129,7 +130,8 @@ void main(void)
     float radius = vertex.x < box.x
         ? (vertex.y < box.y ? cornerRadius.x : cornerRadius.w)
         : (vertex.y < box.y ? cornerRadius.y : cornerRadius.z);
-    vec2 q = abs(vertex - box.xy) - box.zw + vec2(radius);
+    vec2 shapeHalf = max(box.zw - vec2(shape == 1 ? shapeInset : 0.0), vec2(0.0));
+    vec2 q = abs(vertex - box.xy) - shapeHalf + vec2(radius);
     vec2 outside = max(q, vec2(0.0));
     // K=0.8 cubic midpoint maps to a superellipse exponent of about 3.106.
     float squirclePower = squircleExponent;
