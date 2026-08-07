@@ -51,6 +51,7 @@ struct WindowOverride {
     std::optional<qreal> saturation{};
     std::optional<qreal> contrast{};
     bool squircle{false};
+    bool pointed{false};
 };
 
 class WindowManager : public QObject {
@@ -180,6 +181,12 @@ public:
 
     /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
     bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;
+    /**
+     * Body corner radius for a pointed-mask window: the override's radius
+     * when set (e.g. the thumbnail popup's 10), else the shared tooltip
+     * radius — so the tooltip's blank override keeps its configured shape.
+     */
+    qreal pointedMaskBodyRadius(const KWin::EffectWindow *w) const;
 
     /** Whether this is the dock plate governed by the plate-only SDF inset. */
     bool usesDockPlateMask(const KWin::EffectWindow *w) const;

@@ -1241,7 +1241,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                                     .rounded()
                                     .translated(-scaledBackgroundRect.topLeft());
         const BorderRadius nativeCornerRadius = pointedTooltipMask
-            ? BorderRadius(m_windowManager->pointedTooltipRadius() * viewport.scale())
+            ? BorderRadius(m_windowManager->pointedMaskBodyRadius(w) * viewport.scale())
             : cornerRadius.scaled(viewport.scale()).rounded();
         const QVector4D tooltipGeometry(
             m_windowManager->pointedTooltipArrowHeight() * viewport.scale(),

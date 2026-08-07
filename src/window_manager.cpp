@@ -225,8 +225,9 @@ void BBDX::WindowManager::reconfigure() {
         if (const auto c = parseOpt(4)) {
             o.contrast = *c / 100.0;
         }
-        o.squircle = fields.value(5).trimmed().compare(
-            QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
+        const QString maskKind = fields.value(5).trimmed();
+        o.squircle = maskKind.compare(QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
+        o.pointed = maskKind.compare(QStringLiteral("pointed"), Qt::CaseInsensitive) == 0;
 
         windowOverrides.append(std::move(o));
     }
@@ -322,7 +323,19 @@ bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
 }
 
 bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    if (o && o->pointed) {
+        return true;
+    }
     return w->window()->resourceClass() == QStringLiteral("surfboard-tooltip");
+}
+
+qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    if (o && o->cornerRadius) {
+        return *o->cornerRadius;
+    }
+    return m_pointedTooltipRadius;
 }
 
 bool BBDX::WindowManager::usesDockPlateMask(const KWin::EffectWindow *w) const {
