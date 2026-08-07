@@ -705,6 +705,16 @@ RegionF BlurEffect::blurRegion(EffectWindow *w) const
 {
     RegionF region;
 
+    // A closed window's surface is gone; its Deleted remnant must not keep
+    // frosting the backdrop. Stock blur dies with the surface because the
+    // client-supplied region dies with it, but force-blur ignores client
+    // regions — without this cut the blur outlives the buffer by a frame or
+    // two, visible as stuck edge ghosts when the dock's thumbnail popup or
+    // Settings window closes.
+    if (w->isDeleted()) {
+        return region;
+    }
+
     if (auto it = m_windows.find(w); it != m_windows.end()) {
         const std::optional<RegionF> &content = it->second.content;
         const std::optional<RegionF> &frame = it->second.frame;
