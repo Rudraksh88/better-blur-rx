@@ -1230,29 +1230,48 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
 
     const BorderRadius cornerRadius = m_windowManager->getEffectiveBorderRadius(w);
     const bool pointedTooltipMask = m_windowManager->usesPointedTooltipMask(w);
+    // A menu is a trusted, client-shaped surface, so it keeps its own (null)
+    // radius above and would be composited unmasked -- with the aliased corners
+    // of the region it quantized itself. It's masked here instead.
+    const bool menuMask = !pointedTooltipMask && m_windowManager->usesMenuMask(w);
     const int shapeMask = pointedTooltipMask
         ? 2
-        : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w) ? 1 : 0);
+        : (menuMask
+               ? (m_windowManager->menuSquircle() ? 1 : 0)
+               : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w) ? 1 : 0));
     const auto drawFinalCached = [&]() {
         const float modulation = opacity * opacity;
-        if (cornerRadius.isNull() && !pointedTooltipMask) {
+        if (cornerRadius.isNull() && !pointedTooltipMask && !menuMask) {
             m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
             return;
         }
 
+        // A menu reserves the room for its shadow inside its own surface, so
+        // its frame geometry is larger than the menu one sees. Its blur region
+        // is the menu itself, which is what the mask has to be shaped after.
+        const RectF maskRect = menuMask ? blurRegion(w).boundingRect()
+                                        : RectF{0.0, 0.0,
+                                                w->frameGeometry().width(),
+                                                w->frameGeometry().height()};
         const RectF transformedRect = RectF{
-            w->frameGeometry().x() + data.xTranslation(),
-            w->frameGeometry().y() + data.yTranslation(),
-            w->frameGeometry().width() * data.xScale(),
-            w->frameGeometry().height() * data.yScale(),
+            w->frameGeometry().x() + maskRect.x() * data.xScale() + data.xTranslation(),
+            w->frameGeometry().y() + maskRect.y() * data.yScale() + data.yTranslation(),
+            maskRect.width() * data.xScale(),
+            maskRect.height() * data.yScale(),
         };
         const RectF nativeBox = transformedRect
                                     .scaled(viewport.scale())
                                     .rounded()
                                     .translated(-scaledBackgroundRect.topLeft());
+        // The menu radius isn't rounded to whole device pixels: it's the exact
+        // radius the style painted the menu with, and the mask is antialiased
+        // anyway, so rounding it would only misplace the corner at fractional
+        // scale factors.
         const BorderRadius nativeCornerRadius = pointedTooltipMask
             ? BorderRadius(m_windowManager->pointedMaskBodyRadius(w) * viewport.scale())
-            : cornerRadius.scaled(viewport.scale()).rounded();
+            : (menuMask
+                   ? BorderRadius(m_windowManager->menuRadius() * viewport.scale())
+                   : cornerRadius.scaled(viewport.scale()).rounded());
         const QVector4D tooltipGeometry(
             m_windowManager->pointedTooltipArrowHeight() * viewport.scale(),
             m_windowManager->pointedTooltipArrowHalf() * viewport.scale(),

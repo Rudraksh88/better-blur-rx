@@ -103,6 +103,8 @@ private:
     qreal m_pointedTooltipTipRadius{1.6};
     qreal m_pointedTooltipInset{1.0};
     qreal m_pointedTooltipFeather{1.0};
+    qreal m_menuRadius{0.0};
+    bool m_menuSquircle{false};
     std::optional<qreal> m_previewPlateBlurRadius{};
 
     // window-specific overrides, first match wins
@@ -191,8 +193,17 @@ public:
     /** Whether this is the dock plate governed by the plate-only SDF inset. */
     bool usesDockPlateMask(const KWin::EffectWindow *w) const;
 
+    /**
+     * Whether this is a menu or combo-box popup whose corners we round. Such a
+     * surface shapes its own blur region, but only to whole pixels, so that its
+     * corners are aliased; the mask replaces them with antialiased ones.
+     */
+    bool usesMenuMask(const KWin::EffectWindow *w) const;
+
     qreal squircleExponent() const { return m_squircleExponent; }
     qreal plateMaskInset() const { return m_plateMaskInset; }
+    qreal menuRadius() const { return m_menuRadius; }
+    bool menuSquircle() const { return m_menuSquircle; }
     qreal pointedTooltipRadius() const { return m_pointedTooltipRadius; }
     qreal pointedTooltipArrowHeight() const { return m_pointedTooltipArrowHeight; }
     qreal pointedTooltipArrowHalf() const { return m_pointedTooltipArrowHalf; }

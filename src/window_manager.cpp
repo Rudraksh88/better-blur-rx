@@ -170,6 +170,8 @@ void BBDX::WindowManager::reconfigure() {
     m_pointedTooltipTipRadius = std::clamp<qreal>(config->pointedTooltipTipRadius(), 0.0, 32.0);
     m_pointedTooltipInset = std::clamp<qreal>(config->pointedTooltipInset(), 0.0, 8.0);
     m_pointedTooltipFeather = std::clamp<qreal>(config->pointedTooltipFeather(), 0.25, 4.0);
+    m_menuRadius = std::clamp<qreal>(config->menuRadius(), 0.0, 64.0);
+    m_menuSquircle = config->menuSquircle();
     m_previewPlateBlurRadius.reset();
 
     // Parse window-specific overrides.
@@ -340,6 +342,26 @@ qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) co
 
 bool BBDX::WindowManager::usesDockPlateMask(const KWin::EffectWindow *w) const {
     return w->window()->resourceClass() == QStringLiteral("surfboard-plate");
+}
+
+bool BBDX::WindowManager::usesMenuMask(const KWin::EffectWindow *w) const {
+    // Menus can't be told apart by their class -- they carry the class of the
+    // application they belong to -- so a window override can't reach them and
+    // the window type is what we match on, as with the dock and its tooltips.
+    if (m_menuRadius <= 0.0) {
+        return false;
+    }
+
+    // Window::isMenu() is what the rest of the effect means by a menu, and it
+    // has to be reused here: a Wayland menu is an xdg_popup, which carries none
+    // of the X11 window types, so isPopupWindow() is the only one of them that
+    // answers for it. A combo box popup is a menu for our purpose too, and says
+    // so by its own type wherever the types exist at all.
+    const BBDX::Window *window = findWindow(w);
+    const bool menu = window != nullptr
+        ? window->isMenu()
+        : (w->isMenu() || w->isDropdownMenu() || w->isPopupMenu() || w->isPopupWindow());
+    return menu || w->isComboBox();
 }
 
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {

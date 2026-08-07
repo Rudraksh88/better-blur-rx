@@ -86,6 +86,21 @@ class3</default>
         <entry name="PointedTooltipFeather" type="Double">
             <default>1.0</default>
         </entry>
+        <!-- Menus and combo-box popups. A menu rounds its own blur region, but
+             only to whole pixels, so its corners come out aliased. With a
+             radius set here the compositor masks them instead, with the same
+             coverage-based antialiasing the dock and its tooltips get. The
+             radius has to be the one the style paints the menu with, since a
+             client has no way of handing it over; 0 leaves menus alone. The
+             style must also stop rounding the region itself (in Kvantum,
+             menu_blur_radius=0), or its quantized corners would clip the mask.
+             MenuSquircle only suits a style that paints superellipse corners. -->
+        <entry name="MenuRadius" type="Double">
+            <default>0.0</default>
+        </entry>
+        <entry name="MenuSquircle" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Refraction -->
         <entry name="RefractionStrength" type="Int">
             <default>0</default>
