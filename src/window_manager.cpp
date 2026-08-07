@@ -322,11 +322,11 @@ bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
 }
 
 bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
-    return w->window()->resourceClass() == QStringLiteral("svelte-dock-tooltip");
+    return w->window()->resourceClass() == QStringLiteral("surfboard-tooltip");
 }
 
 bool BBDX::WindowManager::usesDockPlateMask(const KWin::EffectWindow *w) const {
-    return w->window()->resourceClass() == QStringLiteral("svelte-dock-plate");
+    return w->window()->resourceClass() == QStringLiteral("surfboard-plate");
 }
 
 void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
@@ -500,7 +500,7 @@ void BBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::o
 
 KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::EffectWindow *w) const {
     if (m_previewPlateBlurRadius
-        && w->window()->resourceClass() == QStringLiteral("svelte-dock-plate")) {
+        && w->window()->resourceClass() == QStringLiteral("surfboard-plate")) {
         return KWin::BorderRadius(*m_previewPlateBlurRadius);
     }
     const auto window = findWindow(w);

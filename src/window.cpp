@@ -365,7 +365,7 @@ bool BBDX::Window::shouldForceBlur() const {
     // Settings toplevel has a dedicated app-id, so put only that real window
     // on the regular compositor-owned force-blur geometry path.
     if (effectwindow()->window()->resourceClass()
-        == QStringLiteral("svelte-dock-settings-surface")) {
+        == QStringLiteral("surfboard-settings-surface")) {
         return true;
     }
 
@@ -423,7 +423,7 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
             BBDX::regionTranslatedF(*content, contentTopLeft) & clipRect,
             -contentTopLeft
         );
-        
+
         blurOriginSet(BlurOrigin::RequestedContent);
         blurOriginUnset(BlurOrigin::ForcedContent);
     } else {
@@ -629,7 +629,7 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
         // animation takes 250ms max for now
         const qreal progress = elapsed / 250.0;
 
-        // we need to queue a full repaint here to 
+        // we need to queue a full repaint here to
         // avoid flickering due to blur-region-clipping
         effectwindow()->addRepaintFull();
 

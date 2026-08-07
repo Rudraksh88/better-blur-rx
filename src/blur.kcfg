@@ -55,7 +55,7 @@ class3</default>
         <entry name="WindowOverrides" type="String">
             <default></default>
         </entry>
-        <!-- Runtime SDF geometry owned by svelte-dock. These remain KConfig
+        <!-- Runtime SDF geometry owned by surfboard. These remain KConfig
              values so changing an existing shape never requires recompiling
              the effect; the dock updates them atomically before requesting an
              effect reconfigure. -->
