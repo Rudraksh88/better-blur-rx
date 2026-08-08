@@ -357,6 +357,13 @@ bool BBDX::WindowManager::usesMenuMask(const KWin::EffectWindow *w) const {
     // of the X11 window types, so isPopupWindow() is the only one of them that
     // answers for it. A combo box popup is a menu for our purpose too, and says
     // so by its own type wherever the types exist at all.
+    // The dock's own menu is a layer-shell window that only looks like a menu,
+    // so no window type answers for it; it says what it is by its class, as the
+    // plate and the tooltip do. Its submenus are real popups and need nothing.
+    if (w->window()->resourceClass() == QStringLiteral("surfboard-menu")) {
+        return true;
+    }
+
     const BBDX::Window *window = findWindow(w);
     const bool menu = window != nullptr
         ? window->isMenu()
