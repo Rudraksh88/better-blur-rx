@@ -326,6 +326,11 @@ bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
     return o && o->squircle;
 }
 
+bool BBDX::WindowManager::blurRequestedByClient(const KWin::EffectWindow *w) const {
+    const Window *window = findWindow(w);
+    return window && window->blurRequestedByClient();
+}
+
 bool BBDX::WindowManager::usesFlatBottomSquircleMask(const KWin::EffectWindow *w) const {
     const WindowOverride *o = overrideFor(w);
     return o && o->flatBottom;

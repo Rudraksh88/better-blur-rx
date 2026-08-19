@@ -184,6 +184,9 @@ public:
     /** Whether the matching override requests a superellipse corner mask. */
     bool usesSquircleMask(const KWin::EffectWindow *w) const;
 
+    /** Whether the client asked for this surface's blur itself. */
+    bool blurRequestedByClient(const KWin::EffectWindow *w) const;
+
     /** Whether that superellipse has square lower corners. */
     bool usesFlatBottomSquircleMask(const KWin::EffectWindow *w) const;
 

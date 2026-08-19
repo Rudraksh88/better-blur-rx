@@ -264,6 +264,11 @@ void BBDX::Window::blurOriginUnset(BlurOrigin origin) {
     m_blurOriginMask &= ~static_cast<unsigned int>(origin);
 }
 
+bool BBDX::Window::blurRequestedByClient() const {
+    return blurOriginIs(BlurOrigin::RequestedContent)
+        || blurOriginIs(BlurOrigin::RequestedFrame);
+}
+
 bool BBDX::Window::blurOriginIs(BlurOrigin origin) const {
     return !!(m_blurOriginMask & static_cast<unsigned int>(origin));
 }

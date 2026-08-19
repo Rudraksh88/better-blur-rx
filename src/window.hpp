@@ -153,6 +153,13 @@ public:
     bool isBlurFullyCovered() const { return m_isBlurFullyCovered; }
 
     /**
+     * Whether the client supplied this surface's blur region itself, as
+     * opposed to the effect forcing blur on it. A client-requested region is
+     * the surface's own decision and must survive its close animation.
+     */
+    bool blurRequestedByClient() const;
+
+    /**
      * reconfigure hook
      */
     void reconfigure();
