@@ -5,7 +5,8 @@
 uniform sampler2D texUnit;
 uniform vec4 box;
 uniform vec4 cornerRadius;
-// 0 = rounded rectangle, 1 = squircle, 2 = pointed tooltip
+// 0 = rounded rectangle, 1 = squircle, 2 = pointed tooltip,
+// 3 = squircle with square bottom corners
 uniform int shape;
 uniform float squircleExponent;
 uniform float shapeInset;
@@ -130,8 +131,16 @@ void main(void)
     float radius = vertex.x < box.x
         ? (vertex.y < box.y ? cornerRadius.x : cornerRadius.w)
         : (vertex.y < box.y ? cornerRadius.y : cornerRadius.z);
-    vec2 shapeHalf = max(box.zw - vec2(shape == 1 ? shapeInset : 0.0), vec2(0.0));
-    vec2 q = abs(vertex - box.xy) - shapeHalf + vec2(radius);
+    bool squircleMask = shape == 1 || shape == 3;
+    // Insets normally shrink all four sides. A flat-bottom squircle instead
+    // keeps the lower edge on the allocation boundary while insetting its top
+    // and sides; shift the center by half the one-sided vertical inset.
+    vec2 shapeCenter = box.xy + vec2(0.0, shape == 3 ? shapeInset * 0.5 : 0.0);
+    vec2 squircleInset = shape == 3
+        ? vec2(shapeInset, shapeInset * 0.5)
+        : vec2(squircleMask ? shapeInset : 0.0);
+    vec2 shapeHalf = max(box.zw - squircleInset, vec2(0.0));
+    vec2 q = abs(vertex - shapeCenter) - shapeHalf + vec2(radius);
     vec2 outside = max(q, vec2(0.0));
     // K=0.8 cubic midpoint maps to a superellipse exponent of about 3.106.
     float squirclePower = squircleExponent;
@@ -147,10 +156,10 @@ void main(void)
         // the overlap nor exposes a derivative seam where the primitives meet.
         alpha = max(bodyAlpha, arrowAlpha);
     } else {
-        float f = shape == 1
+        float f = squircleMask
             ? squircleDistance
             : sdfRoundedBox(vertex, box.xy, box.zw, cornerRadius);
-        alpha = antialiasedCoverage(f, shape == 1 ? 1.5 : 1.0);
+        alpha = antialiasedCoverage(f, squircleMask ? 1.5 : 1.0);
     }
 
     fragColor = fragColor * alpha * modulation;

@@ -52,6 +52,9 @@ struct WindowOverride {
     std::optional<qreal> contrast{};
     bool squircle{false};
     bool pointed{false};
+    /// The docked plate's squircle keeps its top radii but meets the screen
+    /// edge with square lower corners.
+    bool flatBottom{false};
 };
 
 class WindowManager : public QObject {
@@ -180,6 +183,9 @@ public:
 
     /** Whether the matching override requests a superellipse corner mask. */
     bool usesSquircleMask(const KWin::EffectWindow *w) const;
+
+    /** Whether that superellipse has square lower corners. */
+    bool usesFlatBottomSquircleMask(const KWin::EffectWindow *w) const;
 
     /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
     bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;

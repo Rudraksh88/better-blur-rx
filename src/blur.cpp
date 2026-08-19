@@ -1234,11 +1234,15 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
     // radius above and would be composited unmasked -- with the aliased corners
     // of the region it quantized itself. It's masked here instead.
     const bool menuMask = !pointedTooltipMask && m_windowManager->usesMenuMask(w);
+    const bool flatBottomSquircleMask =
+        m_windowManager->usesFlatBottomSquircleMask(w);
     const int shapeMask = pointedTooltipMask
         ? 2
         : (menuMask
                ? (m_windowManager->menuSquircle() ? 1 : 0)
-               : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w) ? 1 : 0));
+               : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w)
+                      ? (flatBottomSquircleMask ? 3 : 1)
+                      : 0));
     const auto drawFinalCached = [&]() {
         const float modulation = opacity * opacity;
         if (cornerRadius.isNull() && !pointedTooltipMask && !menuMask) {

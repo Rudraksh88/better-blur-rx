@@ -50,8 +50,9 @@ class3</default>
         </entry>
         <!-- Window-specific overrides.
              One row per line, tab separated:
-               <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>
-             Empty field = inherit the global value. -->
+               <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>\t<maskKind>
+             Empty field = inherit the global value. maskKind is empty,
+             "squircle", "squircle-flat", or "pointed". -->
         <entry name="WindowOverrides" type="String">
             <default></default>
         </entry>

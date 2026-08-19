@@ -228,7 +228,9 @@ void BBDX::WindowManager::reconfigure() {
             o.contrast = *c / 100.0;
         }
         const QString maskKind = fields.value(5).trimmed();
-        o.squircle = maskKind.compare(QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
+        o.flatBottom = maskKind.compare(QStringLiteral("squircle-flat"), Qt::CaseInsensitive) == 0;
+        o.squircle = o.flatBottom
+            || maskKind.compare(QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
         o.pointed = maskKind.compare(QStringLiteral("pointed"), Qt::CaseInsensitive) == 0;
 
         windowOverrides.append(std::move(o));
@@ -322,6 +324,11 @@ std::optional<QMatrix4x4> BBDX::WindowManager::getColorMatrixOverride(const KWin
 bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
     const WindowOverride *o = overrideFor(w);
     return o && o->squircle;
+}
+
+bool BBDX::WindowManager::usesFlatBottomSquircleMask(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    return o && o->flatBottom;
 }
 
 bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
@@ -541,9 +548,17 @@ void BBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::o
 }
 
 KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::EffectWindow *w) const {
+    const auto withOverrideCorners = [this, w](const KWin::BorderRadius &radius) {
+        if (usesFlatBottomSquircleMask(w)) {
+            // Constructor order is TL, TR, BR, BL. Keeping this conversion at
+            // the manager boundary also covers the live plate-radius preview.
+            return KWin::BorderRadius(radius.topLeft(), radius.topRight(), 0.0, 0.0);
+        }
+        return radius;
+    };
     if (m_previewPlateBlurRadius
         && w->window()->resourceClass() == QStringLiteral("surfboard-plate")) {
-        return KWin::BorderRadius(*m_previewPlateBlurRadius);
+        return withOverrideCorners(KWin::BorderRadius(*m_previewPlateBlurRadius));
     }
     const auto window = findWindow(w);
 
@@ -551,7 +566,7 @@ KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::Eff
     if (!window)
         return KWin::BorderRadius();
 
-    return window->getEffectiveBorderRadius();
+    return withOverrideCorners(window->getEffectiveBorderRadius());
 }
 
 qreal BBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, KWin::WindowPaintData &data) const {
