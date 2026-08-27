@@ -1286,10 +1286,35 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             m_windowManager->pointedTooltipArrowHalf() * viewport.scale(),
             m_windowManager->pointedTooltipShoulder() * viewport.scale(),
             m_windowManager->pointedTooltipTipRadius() * viewport.scale());
+        // The arrow defaults to the body's horizontal centre. A pointed window
+        // that published an arrow position (Window::getFinalBlurRegion) moves
+        // it — device px, relative to the box centre, clamped so the joint
+        // stays on the body exactly like the client's own drawing clamps.
+        qreal arrowOffsetDevice = 0.0;
+        if (pointedTooltipMask) {
+            if (const auto arrowCenterX = m_windowManager->pointedArrowCenterX(w)) {
+                const qreal arrowDeviceX =
+                    (w->frameGeometry().x() + *arrowCenterX * data.xScale()
+                     + data.xTranslation()) * viewport.scale()
+                    - scaledBackgroundRect.x();
+                const qreal arrowHalfExtent =
+                    (m_windowManager->pointedTooltipArrowHalf()
+                     + m_windowManager->pointedTooltipShoulder()) * viewport.scale();
+                const qreal bodyHalfWidth = nativeBox.width() * 0.5
+                    - m_windowManager->pointedTooltipInset() * viewport.scale();
+                const qreal maxOffset = std::max(
+                    0.0,
+                    bodyHalfWidth
+                        - m_windowManager->pointedMaskBodyRadius(w) * viewport.scale()
+                        - arrowHalfExtent - 2.0 * viewport.scale());
+                arrowOffsetDevice = std::clamp(
+                    arrowDeviceX - nativeBox.horizontalCenter(), -maxOffset, maxOffset);
+            }
+        }
         const QVector4D tooltipStyle(
             m_windowManager->pointedTooltipInset() * viewport.scale(),
             m_windowManager->pointedTooltipFeather(),
-            0.0,
+            static_cast<float>(arrowOffsetDevice),
             0.0);
         m_blurCache->drawShapedCached(
             viewport,

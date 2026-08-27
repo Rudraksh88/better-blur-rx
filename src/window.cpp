@@ -451,6 +451,32 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     if ((m_windowManager->usesSquircleMask(effectwindow())
          || m_windowManager->usesPointedTooltipMask(effectwindow()))
         && !effectwindow()->hasDecoration()) {
+        // The pointed mask centres its arrow on the body. A client that wants
+        // it elsewhere (the thumbnail popup: body clamped at a screen edge,
+        // arrow still on the icon) publishes a two-rect blur region — the body
+        // plus a narrow rect in the bottom arrow band. The region itself is
+        // discarded just below (force-blur owns the area), so mine the arrow's
+        // center x out of it first. `content` is contents-local here; store
+        // frame-local to match the mask rect the draw pass works in.
+        if (m_windowManager->usesPointedTooltipMask(effectwindow())) {
+            std::optional<qreal> arrowCenterX;
+            if (content.has_value()) {
+                const auto rects = content->rects();
+                if (rects.size() > 1) {
+                    const auto bounds = content->boundingRect();
+                    const KWin::RectF *arrowRect = nullptr;
+                    for (const auto &rect : rects) {
+                        if (!arrowRect || rect.top() > arrowRect->top())
+                            arrowRect = &rect;
+                    }
+                    if (arrowRect && arrowRect->width() < bounds.width()) {
+                        arrowCenterX = arrowRect->horizontalCenter()
+                            + m_effectwindow->contentsRect().left();
+                    }
+                }
+            }
+            m_pointedArrowCenterX = arrowCenterX;
+        }
         content = KWin::RegionF{};
         frame.reset();
         blurOriginSet(BlurOrigin::ForcedContent);

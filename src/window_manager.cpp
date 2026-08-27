@@ -352,6 +352,13 @@ qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) co
     return m_pointedTooltipRadius;
 }
 
+std::optional<qreal> BBDX::WindowManager::pointedArrowCenterX(const KWin::EffectWindow *w) const {
+    const auto window = findWindow(w);
+    if (!window)
+        return std::nullopt;
+    return window->pointedArrowCenterX();
+}
+
 bool BBDX::WindowManager::usesDockPlateMask(const KWin::EffectWindow *w) const {
     return w->window()->resourceClass() == QStringLiteral("surfboard-plate");
 }

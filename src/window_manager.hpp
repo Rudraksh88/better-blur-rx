@@ -199,6 +199,12 @@ public:
      */
     qreal pointedMaskBodyRadius(const KWin::EffectWindow *w) const;
 
+    /**
+     * Arrow tip center x (frame-local logical) a pointed-mask window published
+     * through its client blur region; nullopt = centre the arrow on the body.
+     */
+    std::optional<qreal> pointedArrowCenterX(const KWin::EffectWindow *w) const;
+
     /** Whether this is the dock plate governed by the plate-only SDF inset. */
     bool usesDockPlateMask(const KWin::EffectWindow *w) const;
 

@@ -72,6 +72,14 @@ private:
     std::optional<KWin::RegionF> m_forceBlurContent{};
     std::optional<KWin::RegionF> m_forceBlurFrame{};
 
+    // Pointed-tooltip windows: the arrow tip's center x in frame-local logical
+    // coordinates, mined from the client's blur region before the shape
+    // override discards it (see getFinalBlurRegion). The dock's thumbnail
+    // popup publishes a body+arrow two-rect region purely as this metadata
+    // channel; unset means "centre the arrow on the body" (the tooltip
+    // helper's case, and every client that sets no region).
+    std::optional<qreal> m_pointedArrowCenterX{};
+
     // track whether this window requested a blur region
     // and where it came from
     unsigned int m_blurOriginMask{0};
@@ -149,6 +157,7 @@ public:
     KWin::EffectWindow* effectwindow() const { return m_effectwindow; }
     std::optional<KWin::RegionF> forceBlurContent() const { return m_forceBlurContent; };
     std::optional<KWin::RegionF> forceBlurFrame() const { return m_forceBlurFrame; };
+    std::optional<qreal> pointedArrowCenterX() const { return m_pointedArrowCenterX; }
     bool shouldBlurWhileTransformed() const;
     bool isBlurFullyCovered() const { return m_isBlurFullyCovered; }
 
