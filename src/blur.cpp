@@ -70,6 +70,7 @@
 #include <KDecoration3/Decoration>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -1283,11 +1284,43 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             : (menuMask
                    ? BorderRadius(m_windowManager->menuRadius() * viewport.scale())
                    : cornerRadius.scaled(viewport.scale()).rounded());
-        const QVector4D tooltipGeometry(
-            m_windowManager->pointedTooltipArrowHeight() * viewport.scale(),
+        const qreal tooltipInsetDevice =
+            m_windowManager->pointedTooltipInset() * viewport.scale();
+        const qreal arrowHeightDevice =
+            m_windowManager->pointedTooltipArrowHeight() * viewport.scale();
+        const qreal bodyHalfWidth = std::max(0.0, nativeBox.width() * 0.5 - tooltipInsetDevice);
+        const qreal bodyHalfHeight = std::max(
+            0.0,
+            nativeBox.height() * 0.5 - tooltipInsetDevice - arrowHeightDevice * 0.5);
+        const qreal bodyRadiusDevice = std::min(
+            {m_windowManager->pointedMaskBodyRadius(w) * viewport.scale(),
+             bodyHalfWidth,
+             bodyHalfHeight});
+        qreal arrowHalfDevice = std::min(
             m_windowManager->pointedTooltipArrowHalf() * viewport.scale(),
-            m_windowManager->pointedTooltipShoulder() * viewport.scale(),
-            m_windowManager->pointedTooltipTipRadius() * viewport.scale());
+            bodyHalfWidth * 0.44);
+        qreal shoulderDevice = 0.0;
+        qreal tipRadiusDevice = 0.0;
+        if (arrowHeightDevice > std::numeric_limits<qreal>::epsilon()) {
+            const qreal flank = std::hypot(arrowHalfDevice, arrowHeightDevice);
+            const qreal bodyRoom = std::max(
+                0.0,
+                bodyHalfWidth - bodyRadiusDevice - arrowHalfDevice - 2.0 * viewport.scale());
+            const qreal requestedShoulder = std::min(
+                m_windowManager->pointedTooltipShoulder() * viewport.scale(), bodyRoom);
+            const qreal requestedTip =
+                m_windowManager->pointedTooltipTipRadius() * viewport.scale();
+            const qreal requested = requestedShoulder + requestedTip;
+            const qreal scale = requested > std::numeric_limits<qreal>::epsilon()
+                ? std::min(1.0, flank * 0.92 / requested)
+                : 1.0;
+            shoulderDevice = requestedShoulder * scale;
+            tipRadiusDevice = requestedTip * scale;
+        } else {
+            arrowHalfDevice = 0.0;
+        }
+        const QVector4D tooltipGeometry(
+            arrowHeightDevice, arrowHalfDevice, shoulderDevice, tipRadiusDevice);
         // The arrow defaults to the body's horizontal centre. A pointed window
         // that published an arrow position (Window::getFinalBlurRegion) moves
         // it — device px, relative to the box centre, clamped so the joint
@@ -1300,14 +1333,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                      + data.xTranslation()) * viewport.scale()
                     - scaledBackgroundRect.x();
                 const qreal arrowHalfExtent =
-                    (m_windowManager->pointedTooltipArrowHalf()
-                     + m_windowManager->pointedTooltipShoulder()) * viewport.scale();
-                const qreal bodyHalfWidth = nativeBox.width() * 0.5
-                    - m_windowManager->pointedTooltipInset() * viewport.scale();
+                    arrowHalfDevice + shoulderDevice;
                 const qreal maxOffset = std::max(
                     0.0,
                     bodyHalfWidth
-                        - m_windowManager->pointedMaskBodyRadius(w) * viewport.scale()
+                        - bodyRadiusDevice
                         - arrowHalfExtent - 2.0 * viewport.scale());
                 arrowOffsetDevice = std::clamp(
                     arrowDeviceX - nativeBox.horizontalCenter(), -maxOffset, maxOffset);

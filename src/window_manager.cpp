@@ -166,7 +166,7 @@ void BBDX::WindowManager::reconfigure() {
     m_pointedTooltipRadius = std::clamp<qreal>(config->pointedTooltipRadius(), 0.5, 64.0);
     m_pointedTooltipSquircleExponent =
         std::clamp<qreal>(config->pointedTooltipSquircleExponent(), 2.0, 8.0);
-    m_pointedTooltipArrowHeight = std::clamp<qreal>(config->pointedTooltipArrowHeight(), 1.0, 64.0);
+    m_pointedTooltipArrowHeight = std::clamp<qreal>(config->pointedTooltipArrowHeight(), 0.0, 64.0);
     m_pointedTooltipArrowHalf = std::clamp<qreal>(config->pointedTooltipArrowHalf(), 0.5, 64.0);
     m_pointedTooltipShoulder = std::clamp<qreal>(config->pointedTooltipShoulder(), 0.0, 64.0);
     m_pointedTooltipTipRadius = std::clamp<qreal>(config->pointedTooltipTipRadius(), 0.0, 32.0);
@@ -278,14 +278,10 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
     m_pointedTooltipRadius = std::clamp<qreal>(tooltipRadius, 0.5, 32.0);
     m_pointedTooltipSquircleExponent =
         std::clamp<qreal>(tooltipSquircleExponent, 2.0, 8.0);
-    m_pointedTooltipArrowHeight = std::clamp<qreal>(tooltipArrowHeight, 1.0, 32.0);
+    m_pointedTooltipArrowHeight = std::clamp<qreal>(tooltipArrowHeight, 0.0, 32.0);
     m_pointedTooltipArrowHalf = std::clamp<qreal>(tooltipArrowHalf, 0.5, 32.0);
-    m_pointedTooltipShoulder = std::clamp<qreal>(
-        tooltipShoulder, 0.0, m_pointedTooltipArrowHalf * 0.8);
-    m_pointedTooltipTipRadius = std::clamp<qreal>(
-        tooltipTipRadius,
-        0.0,
-        std::min(m_pointedTooltipArrowHeight * 0.3, m_pointedTooltipArrowHalf * 0.3));
+    m_pointedTooltipShoulder = std::clamp<qreal>(tooltipShoulder, 0.0, 32.0);
+    m_pointedTooltipTipRadius = std::clamp<qreal>(tooltipTipRadius, 0.0, 32.0);
     m_pointedTooltipInset = std::clamp<qreal>(tooltipInset, 0.0, 8.0);
     m_pointedTooltipFeather = std::clamp<qreal>(tooltipFeather, 0.25, 4.0);
     repaintAllBlurredWindows();

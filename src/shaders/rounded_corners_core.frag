@@ -27,7 +27,7 @@ float sdSegment(vec2 p, vec2 a, vec2 b)
 {
     vec2 edge = b - a;
     vec2 offset = p - a;
-    float t = clamp(dot(offset, edge) / dot(edge, edge), 0.0, 1.0);
+    float t = clamp(dot(offset, edge) / max(dot(edge, edge), 0.000001), 0.0, 1.0);
     return length(offset - edge * t);
 }
 
@@ -75,12 +75,14 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
     float shoulder = geometry.z;
     float tipRadius = geometry.w;
     vec2 shoulder0 = vec2(arrowHalf + shoulder, 0.0);
-    vec2 shoulder1 = vec2(arrowHalf + shoulder * 0.325, 0.0);
-    vec2 shoulder2 = vec2(arrowHalf + shoulder * 0.175, shoulder * 0.35);
-    vec2 shoulder3 = vec2(arrowHalf - shoulder * 0.25, shoulder * 0.55);
-    vec2 tip0 = vec2(tipRadius * 1.15, arrowHeight - tipRadius);
-    vec2 tip1 = vec2(tipRadius * 0.85, arrowHeight - tipRadius * 0.35);
-    vec2 tip2 = vec2(tipRadius * 0.45, arrowHeight);
+    float flank = max(length(vec2(arrowHalf, arrowHeight)), 0.000001);
+    vec2 unitFlank = vec2(-arrowHalf, arrowHeight) / flank;
+    vec2 shoulder1 = vec2(arrowHalf + shoulder / 3.0, 0.0);
+    vec2 shoulder2 = vec2(arrowHalf, 0.0) + unitFlank * (shoulder / 3.0);
+    vec2 shoulder3 = vec2(arrowHalf, 0.0) + unitFlank * shoulder;
+    vec2 tip0 = vec2(0.0, arrowHeight) - unitFlank * tipRadius;
+    vec2 tip1 = tip0 + unitFlank * (tipRadius * 0.55);
+    vec2 tip2 = vec2(-unitFlank.x * tipRadius * 0.28, arrowHeight);
     vec2 tip3 = vec2(0.0, arrowHeight);
 
     vec2 q = vec2(abs(p.x), p.y);
@@ -91,10 +93,13 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
     bool inside = false;
     if (q.y >= 0.0 && q.y <= tip3.y) {
         float boundaryX;
-        if (q.y <= shoulder3.y) {
+        if (shoulder3.y > 0.000001 && q.y <= shoulder3.y) {
             boundaryX = cubicXAtY(q.y, shoulder0, shoulder1, shoulder2, shoulder3);
-        } else if (q.y <= tip0.y) {
-            float t = (q.y - shoulder3.y) / (tip0.y - shoulder3.y);
+        } else if (q.y <= tip0.y || tipRadius <= 0.000001) {
+            float t = clamp(
+                (q.y - shoulder3.y) / max(tip0.y - shoulder3.y, 0.000001),
+                0.0,
+                1.0);
             boundaryX = mix(shoulder3.x, tip0.x, t);
         } else {
             boundaryX = cubicXAtY(q.y, tip0, tip1, tip2, tip3);
@@ -113,14 +118,19 @@ vec2 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
     float arrowHeight = tooltipGeometry.x;
     vec2 bodyCenter = vec2(bounds.x, bounds.y - arrowHeight * 0.5);
     vec2 bodyHalf = max(bounds.zw - vec2(inset, inset + arrowHeight * 0.5), vec2(0.0));
-    float body = sdfRoundedBox(p, bodyCenter, bodyHalf, vec4(radius));
+    float bodyRadius = min(radius, min(bodyHalf.x, bodyHalf.y));
+    float body = sdfRoundedBox(p, bodyCenter, bodyHalf, vec4(bodyRadius));
     if (tooltipStyle.w > 2.0001) {
-        vec2 q = abs(p - bodyCenter) - bodyHalf + vec2(radius);
+        vec2 q = abs(p - bodyCenter) - bodyHalf + vec2(bodyRadius);
         vec2 outside = max(q, vec2(0.0));
         body = min(max(q.x, q.y), 0.0)
             + pow(pow(outside.x, tooltipStyle.w) + pow(outside.y, tooltipStyle.w),
                   1.0 / tooltipStyle.w)
-            - radius;
+            - bodyRadius;
+    }
+
+    if (arrowHeight <= 0.000001) {
+        return vec2(body, 1e20);
     }
 
     float bodyBottom = bounds.y + bounds.w - inset - arrowHeight;
