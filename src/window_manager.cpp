@@ -164,6 +164,8 @@ void BBDX::WindowManager::reconfigure() {
     m_squircleExponent = std::clamp<qreal>(config->squircleExponent(), 2.0, 8.0);
     m_plateMaskInset = std::clamp<qreal>(config->plateMaskInset(), 0.0, 8.0);
     m_pointedTooltipRadius = std::clamp<qreal>(config->pointedTooltipRadius(), 0.5, 64.0);
+    m_pointedTooltipSquircleExponent =
+        std::clamp<qreal>(config->pointedTooltipSquircleExponent(), 2.0, 8.0);
     m_pointedTooltipArrowHeight = std::clamp<qreal>(config->pointedTooltipArrowHeight(), 1.0, 64.0);
     m_pointedTooltipArrowHalf = std::clamp<qreal>(config->pointedTooltipArrowHalf(), 0.5, 64.0);
     m_pointedTooltipShoulder = std::clamp<qreal>(config->pointedTooltipShoulder(), 0.0, 64.0);
@@ -246,6 +248,7 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
                                                qreal plateMaskInset,
                                                qreal squircleExponent,
                                                qreal tooltipRadius,
+                                               qreal tooltipSquircleExponent,
                                                qreal tooltipArrowHeight,
                                                qreal tooltipArrowHalf,
                                                qreal tooltipShoulder,
@@ -257,6 +260,7 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
         plateMaskInset,
         squircleExponent,
         tooltipRadius,
+        tooltipSquircleExponent,
         tooltipArrowHeight,
         tooltipArrowHalf,
         tooltipShoulder,
@@ -272,6 +276,8 @@ bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
     m_plateMaskInset = std::clamp<qreal>(plateMaskInset, 0.0, 8.0);
     m_squircleExponent = std::clamp<qreal>(squircleExponent, 2.0, 8.0);
     m_pointedTooltipRadius = std::clamp<qreal>(tooltipRadius, 0.5, 32.0);
+    m_pointedTooltipSquircleExponent =
+        std::clamp<qreal>(tooltipSquircleExponent, 2.0, 8.0);
     m_pointedTooltipArrowHeight = std::clamp<qreal>(tooltipArrowHeight, 1.0, 32.0);
     m_pointedTooltipArrowHalf = std::clamp<qreal>(tooltipArrowHalf, 0.5, 32.0);
     m_pointedTooltipShoulder = std::clamp<qreal>(
@@ -350,6 +356,14 @@ qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) co
         return *o->cornerRadius;
     }
     return m_pointedTooltipRadius;
+}
+
+qreal BBDX::WindowManager::pointedTooltipSquircleExponent(const KWin::EffectWindow *w) const {
+    // Thumbnail popups share the pointed mask but intentionally keep their
+    // rounded-rectangle body. Only the dock's name tooltip opts into a
+    // squircle, and 2 is the rounded-body sentinel consumed by the shader.
+    return w->window()->resourceClass() == QStringLiteral("surfboard-tooltip")
+        ? m_pointedTooltipSquircleExponent : 2.0;
 }
 
 std::optional<qreal> BBDX::WindowManager::pointedArrowCenterX(const KWin::EffectWindow *w) const {

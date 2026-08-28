@@ -13,7 +13,8 @@ uniform float shapeInset;
 // x = arrow height, y = arrow half-width, z = shoulder, w = tip radius
 uniform vec4 tooltipGeometry;
 // x = inset, y = derivative-AA feather,
-// z = arrow centre offset from the body centre (device px, pre-clamped)
+// z = arrow centre offset from the body centre (device px, pre-clamped),
+// w = pointed body squircle exponent; 2 keeps a rounded rectangle
 uniform vec4 tooltipStyle;
 uniform float modulation;
 
@@ -111,6 +112,14 @@ vec2 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
     vec2 bodyCenter = vec2(bounds.x, bounds.y - arrowHeight * 0.5);
     vec2 bodyHalf = max(bounds.zw - vec2(inset, inset + arrowHeight * 0.5), vec2(0.0));
     float body = sdfRoundedBox(p, bodyCenter, bodyHalf, vec4(radius));
+    if (tooltipStyle.w > 2.0001) {
+        vec2 q = abs(p - bodyCenter) - bodyHalf + vec2(radius);
+        vec2 outside = max(q, vec2(0.0));
+        body = min(max(q.x, q.y), 0.0)
+            + pow(pow(outside.x, tooltipStyle.w) + pow(outside.y, tooltipStyle.w),
+                  1.0 / tooltipStyle.w)
+            - radius;
+    }
 
     float bodyBottom = bounds.y + bounds.w - inset - arrowHeight;
     float arrow = sdfTooltipArrow(

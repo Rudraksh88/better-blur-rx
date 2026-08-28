@@ -69,6 +69,9 @@ class3</default>
         <entry name="PointedTooltipRadius" type="Double">
             <default>5.0</default>
         </entry>
+        <entry name="PointedTooltipSquircleExponent" type="Double">
+            <default>2.0</default>
+        </entry>
         <entry name="PointedTooltipArrowHeight" type="Double">
             <default>8.0</default>
         </entry>

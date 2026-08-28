@@ -131,6 +131,7 @@ public Q_SLOTS:
                                           double plateMaskInset,
                                           double squircleExponent,
                                           double tooltipRadius,
+                                          double tooltipSquircleExponent,
                                           double tooltipArrowHeight,
                                           double tooltipArrowHalf,
                                           double tooltipShoulder,

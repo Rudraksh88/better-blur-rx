@@ -100,6 +100,7 @@ private:
     qreal m_squircleExponent{3.1};
     qreal m_plateMaskInset{0.0};
     qreal m_pointedTooltipRadius{5.0};
+    qreal m_pointedTooltipSquircleExponent{2.0};
     qreal m_pointedTooltipArrowHeight{8.0};
     qreal m_pointedTooltipArrowHalf{6.3};
     qreal m_pointedTooltipShoulder{4.0};
@@ -145,6 +146,7 @@ public:
                              qreal plateMaskInset,
                              qreal squircleExponent,
                              qreal tooltipRadius,
+                             qreal tooltipSquircleExponent,
                              qreal tooltipArrowHeight,
                              qreal tooltipArrowHalf,
                              qreal tooltipShoulder,
@@ -198,6 +200,8 @@ public:
      * radius — so the tooltip's blank override keeps its configured shape.
      */
     qreal pointedMaskBodyRadius(const KWin::EffectWindow *w) const;
+    /** Squircle exponent for the real tooltip; other pointed clients stay rounded. */
+    qreal pointedTooltipSquircleExponent(const KWin::EffectWindow *w) const;
 
     /**
      * Arrow tip center x (frame-local logical) a pointed-mask window published
