@@ -81,9 +81,14 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
     vec2 shoulder2 = vec2(arrowHalf, 0.0) + unitFlank * (shoulder / 3.0);
     vec2 shoulder3 = vec2(arrowHalf, 0.0) + unitFlank * shoulder;
     vec2 tip0 = vec2(0.0, arrowHeight) - unitFlank * tipRadius;
-    vec2 tip1 = tip0 + unitFlank * (tipRadius * 0.55);
-    vec2 tip2 = vec2(-unitFlank.x * tipRadius * 0.28, arrowHeight);
-    vec2 tip3 = vec2(0.0, arrowHeight);
+    float tipCircleRadius = tipRadius * arrowHalf / max(arrowHeight, 0.000001);
+    float tipHalfArc = atan(arrowHeight, arrowHalf);
+    float tipControl = 4.0 / 3.0 * tipCircleRadius * tan(tipHalfArc / 4.0);
+    float apexHeight = max(
+        0.0, arrowHeight - (flank - arrowHalf) / arrowHeight * tipRadius);
+    vec2 tip1 = tip0 + unitFlank * tipControl;
+    vec2 tip2 = vec2(tipControl, apexHeight);
+    vec2 tip3 = vec2(0.0, apexHeight);
 
     vec2 q = vec2(abs(p.x), p.y);
     float edgeDistance = min(
