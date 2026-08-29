@@ -1310,12 +1310,12 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                 m_windowManager->pointedTooltipShoulder() * viewport.scale(), bodyRoom);
             const qreal requestedTip =
                 m_windowManager->pointedTooltipTipRadius() * viewport.scale();
-            const qreal requested = requestedShoulder + requestedTip;
-            const qreal scale = requested > std::numeric_limits<qreal>::epsilon()
-                ? std::min(1.0, flank * 0.92 / requested)
-                : 1.0;
-            shoulderDevice = requestedShoulder * scale;
-            tipRadiusDevice = requestedTip * scale;
+            const qreal budget = flank * 0.98;
+            const qreal shoulderReserve = std::min(requestedShoulder, budget * 0.125);
+            tipRadiusDevice = std::min(requestedTip, std::max(0.0, budget - shoulderReserve));
+            shoulderDevice = std::min(
+                requestedShoulder,
+                std::max(0.0, budget - tipRadiusDevice));
         } else {
             arrowHalfDevice = 0.0;
         }
