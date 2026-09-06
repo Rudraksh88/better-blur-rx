@@ -121,6 +121,7 @@ private:
 
     void refreshMaximizedState();
     void updateForceBlurRegion();
+    void refreshTooltipBackground();
     void triggerBlurRegionUpdate() const;
     bool opacityChangedFromOriginal();
 

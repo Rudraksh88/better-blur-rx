@@ -11,6 +11,9 @@
 #include <effect/globals.h>
 #include <scene/borderradius.h>
 #include <window.h>
+#ifndef BBDX_X11
+#include <wayland/surface.h>
+#endif
 
 #if KWIN_VERSION >= KWIN_VERSION_CODE(6, 5, 80)
 #  include <core/region.h>
@@ -59,6 +62,13 @@ BBDX::Window::Window(BBDX::WindowManager *wm, KWin::EffectWindow *w) {
     connect(w, &KWin::EffectWindow::windowFinishUserMovedResized, this, &BBDX::Window::slotWindowFinishUserMovedResized);
     connect(w, &KWin::EffectWindow::windowOpacityChanged, this, &BBDX::Window::slotWindowOpacityChanged);
     connect(w->window(), &KWin::Window::windowClassChanged, this, &BBDX::Window::reconfigure);
+#ifndef BBDX_X11
+    if (auto *surface = w->surface()) {
+        connect(surface, &KWin::SurfaceInterface::committed, this, [this]() {
+            refreshTooltipBackground();
+        });
+    }
+#endif
 }
 
 void BBDX::Window::slotMinimizedChanged() {
@@ -114,10 +124,27 @@ void BBDX::Window::slotWindowFrameGeometryChanged() {
     m_windowManager->invalidateBlurCache(m_effectwindow,
                                          static_cast<uint>(BlurCacheInvalidationFlag::REGION),
                                          "frameGeometry changed");
+    refreshTooltipBackground();
 
     // Not sure if this is the best place to unset
     // this but seems to work fine for now
     m_restoresMaximized = false;
+}
+
+void BBDX::Window::refreshTooltipBackground() {
+    if (m_effectwindow->window()->resourceClass() != QStringLiteral("surfboard-tooltip")) {
+        return;
+    }
+    // The helper reuses a mapped surface. A label or position change must
+    // resample the whole background, even if the buffer size stays the same
+    // or the cache's normal refresh interval has not elapsed. Full scene
+    // damage is essential: invalidating only the cached result can otherwise
+    // re-blur a mixture of new pixels and the previous location's blit.
+    m_windowManager->invalidateBlurCache(m_effectwindow,
+                                        static_cast<uint>(BlurCacheInvalidationFlag::REGION),
+                                        "Tooltip surface committed");
+    m_windowManager->flushWindowCaches(this);
+    m_effectwindow->addRepaintFull();
 }
 
 void BBDX::Window::slotWindowOpacityChanged(KWin::EffectWindow *w, qreal oldOpacity, qreal newOpacity) {
@@ -640,6 +667,17 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
 }
 
 qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
+#ifndef BBDX_X11
+    if (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")) {
+        if (const auto *surface = effectwindow()->surface()) {
+            // wp_alpha_modifier is committed with the tooltip buffer. GTK
+            // pixel alpha (or an independent DBus animation) cannot keep the
+            // blur and content in the same frame. KWin applies this multiplier
+            // to the SurfaceItem, not WindowPaintData, so include it here once.
+            return data.opacity() * surface->alphaMultiplier();
+        }
+    }
+#endif
     // Plasma surfaces expect their opacity to affect
     // the blur e.g. to hide the blurred surface alongside
     // themselves by adjusting their opacity at run time.
