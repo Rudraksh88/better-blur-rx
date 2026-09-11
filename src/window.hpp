@@ -79,6 +79,9 @@ private:
     // channel; unset means "centre the arrow on the body" (the tooltip
     // helper's case, and every client that sets no region).
     std::optional<qreal> m_pointedArrowCenterX{};
+    // Only the dock's root layer surface can opt in via body+arrow metadata.
+    // Native submenus keep their ordinary blur region and corner treatment.
+    bool m_pointedMenu{false};
 
     // track whether this window requested a blur region
     // and where it came from
@@ -159,6 +162,7 @@ public:
     std::optional<KWin::RegionF> forceBlurContent() const { return m_forceBlurContent; };
     std::optional<KWin::RegionF> forceBlurFrame() const { return m_forceBlurFrame; };
     std::optional<qreal> pointedArrowCenterX() const { return m_pointedArrowCenterX; }
+    bool isPointedMenu() const { return m_pointedMenu; }
     bool shouldBlurWhileTransformed() const;
     bool isBlurFullyCovered() const { return m_isBlurFullyCovered; }
 

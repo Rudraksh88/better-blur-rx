@@ -475,7 +475,29 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     // the full content bounds as the coarse region; the final mask pass clips
     // it to the configured squircle. Restrict this to undecorated surfaces so
     // decorations and content offsets never get silently folded together.
-    if ((m_windowManager->usesSquircleMask(effectwindow())
+    // The menu helper opts in per surface, not by a class-wide override (its
+    // submenus share the same class). A full-width body followed by one narrow
+    // bottom rectangle is the explicit metadata shape, including a 1px band
+    // when the configured arrow height is zero. Native Kvantum regions have
+    // shadow insets or rounded scanlines and cannot match this contract.
+    m_pointedMenu = false;
+    if (content.has_value() && !effectwindow()->isPopupWindow()
+        && effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-menu")
+        && !effectwindow()->hasDecoration()) {
+        const auto rects = content->rects();
+        if (rects.size() == 2) {
+            const auto &body = rects[0].top() < rects[1].top() ? rects[0] : rects[1];
+            const auto &tip = rects[0].top() < rects[1].top() ? rects[1] : rects[0];
+            const auto bounds = effectwindow()->contentsRect();
+            m_pointedMenu = body.left() == 0 && body.top() == 0
+                && body.width() == bounds.width() && body.height() > 0
+                && tip.top() == body.bottom() && tip.bottom() == bounds.height()
+                && tip.height() >= 1 && tip.height() <= 32
+                && tip.left() > 0 && tip.right() < body.right()
+                && tip.width() > 0 && tip.width() < body.width();
+        }
+    }
+    if ((m_pointedMenu || m_windowManager->usesSquircleMask(effectwindow())
          || m_windowManager->usesPointedTooltipMask(effectwindow()))
         && !effectwindow()->hasDecoration()) {
         // The pointed mask centres its arrow on the body. A client that wants
@@ -485,7 +507,7 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         // discarded just below (force-blur owns the area), so mine the arrow's
         // center x out of it first. `content` is contents-local here; store
         // frame-local to match the mask rect the draw pass works in.
-        if (m_windowManager->usesPointedTooltipMask(effectwindow())) {
+        if (m_pointedMenu || m_windowManager->usesPointedTooltipMask(effectwindow())) {
             std::optional<qreal> arrowCenterX;
             if (content.has_value()) {
                 const auto rects = content->rects();
@@ -506,8 +528,15 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         }
         content = KWin::RegionF{};
         frame.reset();
-        blurOriginSet(BlurOrigin::ForcedContent);
-        blurOriginUnset(BlurOrigin::RequestedContent);
+        // Menu close animations keep the client-requested blur with the
+        // fading buffer, just like their native counterparts.
+        if (m_pointedMenu) {
+            blurOriginSet(BlurOrigin::RequestedContent);
+            blurOriginUnset(BlurOrigin::ForcedContent);
+        } else {
+            blurOriginSet(BlurOrigin::ForcedContent);
+            blurOriginUnset(BlurOrigin::RequestedContent);
+        }
         blurOriginUnset(BlurOrigin::RequestedFrame);
         blurOriginUnset(BlurOrigin::ForcedFrame);
         if (m_blurOriginMask != oldBlurOriginMask) {

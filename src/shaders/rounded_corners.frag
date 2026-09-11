@@ -115,7 +115,7 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
     return inside ? -edgeDistance : edgeDistance;
 }
 
-vec2 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
+vec3 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
 {
     float inset = tooltipStyle.x;
     float arrowHeight = tooltipGeometry.x;
@@ -133,13 +133,26 @@ vec2 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
     }
 
     if (arrowHeight <= 0.000001) {
-        return vec2(body, 1e20);
+        return vec3(body, 1e20, 0.0);
     }
 
     float bodyBottom = bounds.y + bounds.w - inset - arrowHeight;
-    float arrow = sdfTooltipArrow(
-        p - vec2(bounds.x + tooltipStyle.z, bodyBottom), tooltipGeometry);
-    return vec2(body, arrow);
+    vec2 local = p - vec2(bounds.x + tooltipStyle.z, bodyBottom);
+    // Curved-arrow distance is much more expensive than the rounded body.
+    // Evaluate it only near its conservative bounding box. Compute derivatives
+    // before branching, and leave two derivative-neighbour pixels around the
+    // coverage box: the sentinel transition then cannot affect visible AA.
+    vec2 pixel = max(abs(dFdx(p)) + abs(dFdy(p)), vec2(0.0001));
+    vec2 padding = pixel * max(2.0, tooltipStyle.y * 2.0);
+    vec2 outsideArrow = vec2(
+        abs(local.x) - (tooltipGeometry.y + tooltipGeometry.z),
+        max(-local.y, local.y - arrowHeight));
+    bool coversArrow = all(lessThanEqual(outsideArrow, padding));
+    float arrow = 1e20;
+    if (all(lessThanEqual(outsideArrow, padding + 2.0 * pixel))) {
+        arrow = sdfTooltipArrow(local, tooltipGeometry);
+    }
+    return vec3(body, arrow, coversArrow ? 1.0 : 0.0);
 }
 
 float antialiasedCoverage(float distance, float feather)
@@ -173,9 +186,9 @@ void main(void)
         - radius;
     float alpha;
     if (shape == 2) {
-        vec2 tooltipParts = sdfPointedTooltipParts(vertex, box, cornerRadius.x);
+        vec3 tooltipParts = sdfPointedTooltipParts(vertex, box, cornerRadius.x);
         float bodyAlpha = antialiasedCoverage(tooltipParts.x, tooltipStyle.y);
-        float arrowAlpha = antialiasedCoverage(tooltipParts.y, tooltipStyle.y);
+        float arrowAlpha = antialiasedCoverage(tooltipParts.y, tooltipStyle.y) * tooltipParts.z;
         // Union coverage once in this fragment. max() neither double-composites
         // the overlap nor exposes a derivative seam where the primitives meet.
         alpha = max(bodyAlpha, arrowAlpha);

@@ -194,6 +194,8 @@ public:
 
     /** Whether this surface uses the dock's integrated pointed-tooltip mask. */
     bool usesPointedTooltipMask(const KWin::EffectWindow *w) const;
+    bool usesPointedMenuMask(const KWin::EffectWindow *w) const;
+    qreal pointedMaskInset(const KWin::EffectWindow *w) const;
     /**
      * Body corner radius for a pointed-mask window: the override's radius
      * when set (e.g. the thumbnail popup's 10), else the shared tooltip

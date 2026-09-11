@@ -1285,7 +1285,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                    ? BorderRadius(m_windowManager->menuRadius() * viewport.scale())
                    : cornerRadius.scaled(viewport.scale()).rounded());
         const qreal tooltipInsetDevice =
-            m_windowManager->pointedTooltipInset() * viewport.scale();
+            m_windowManager->pointedMaskInset(w) * viewport.scale();
         const qreal arrowHeightDevice =
             m_windowManager->pointedTooltipArrowHeight() * viewport.scale();
         const qreal bodyHalfWidth = std::max(0.0, nativeBox.width() * 0.5 - tooltipInsetDevice);
@@ -1344,7 +1344,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             }
         }
         const QVector4D tooltipStyle(
-            m_windowManager->pointedTooltipInset() * viewport.scale(),
+            tooltipInsetDevice,
             m_windowManager->pointedTooltipFeather(),
             static_cast<float>(arrowOffsetDevice),
             m_windowManager->pointedTooltipSquircleExponent(w));

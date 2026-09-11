@@ -339,6 +339,9 @@ bool BBDX::WindowManager::usesFlatBottomSquircleMask(const KWin::EffectWindow *w
 }
 
 bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) const {
+    if (usesPointedMenuMask(w)) {
+        return true;
+    }
     const WindowOverride *o = overrideFor(w);
     if (o && o->pointed) {
         return true;
@@ -346,7 +349,19 @@ bool BBDX::WindowManager::usesPointedTooltipMask(const KWin::EffectWindow *w) co
     return w->window()->resourceClass() == QStringLiteral("surfboard-tooltip");
 }
 
+bool BBDX::WindowManager::usesPointedMenuMask(const KWin::EffectWindow *w) const {
+    const Window *window = findWindow(w);
+    return window && window->isPointedMenu();
+}
+
+qreal BBDX::WindowManager::pointedMaskInset(const KWin::EffectWindow *w) const {
+    return usesPointedMenuMask(w) ? 1.0 : m_pointedTooltipInset;
+}
+
 qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) const {
+    if (usesPointedMenuMask(w)) {
+        return m_menuRadius;
+    }
     const WindowOverride *o = overrideFor(w);
     if (o && o->cornerRadius) {
         return *o->cornerRadius;
