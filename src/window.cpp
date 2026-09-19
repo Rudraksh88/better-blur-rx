@@ -64,6 +64,10 @@ BBDX::Window::Window(BBDX::WindowManager *wm, KWin::EffectWindow *w) {
     connect(w->window(), &KWin::Window::windowClassChanged, this, &BBDX::Window::reconfigure);
 #ifndef BBDX_X11
     if (auto *surface = w->surface()) {
+        m_lastSurfaceAlpha = surface->alphaMultiplier();
+        connect(surface, &KWin::SurfaceInterface::alphaMultiplierChanged, this, [this, surface]() {
+            m_lastSurfaceAlpha = surface->alphaMultiplier();
+        });
         connect(surface, &KWin::SurfaceInterface::committed, this, [this]() {
             refreshTooltipBackground();
         });
@@ -708,17 +712,28 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
 
 qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
 #ifndef BBDX_X11
+    const auto *surface = effectwindow()->surface();
+    // Retained close-animation window whose blur was coupled to
+    // wp_alpha_modifier while it lived: keep the alpha it last committed.
+    // Decided by the latch, not by the current publication state, because a
+    // client clears its D-Bus shape right after hiding, i.e. while KWin is
+    // still animating this remnant, and that must not un-couple it.
+    if (!surface && m_remnantAlphaCoupled) {
+        qCDebug(BBDX_WINDOW) << "Surface remnant alpha:" << m_lastSurfaceAlpha
+                             << effectwindow()->window()->resourceClass();
+        return data.opacity() * m_lastSurfaceAlpha;
+    }
     // Surfaces with a published shape (and the dock tooltip by class) fade
-    // their blur with wp_alpha_modifier, see below.
-    if (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")
-        || m_windowManager->hasSurfaceShape(effectwindow())) {
-        if (const auto *surface = effectwindow()->surface()) {
-            // wp_alpha_modifier is committed with the tooltip buffer. GTK
-            // pixel alpha (or an independent DBus animation) cannot keep the
-            // blur and content in the same frame. KWin applies this multiplier
-            // to the SurfaceItem, not WindowPaintData, so include it here once.
-            return data.opacity() * surface->alphaMultiplier();
-        }
+    // their blur with wp_alpha_modifier.
+    if (surface
+        && (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")
+            || m_windowManager->hasSurfaceShape(effectwindow()))) {
+        // wp_alpha_modifier is committed with the tooltip buffer. GTK
+        // pixel alpha (or an independent DBus animation) cannot keep the
+        // blur and content in the same frame. KWin applies this multiplier
+        // to the SurfaceItem, not WindowPaintData, so include it here once.
+        m_remnantAlphaCoupled = true;
+        return data.opacity() * surface->alphaMultiplier();
     }
 #endif
     // Plasma surfaces expect their opacity to affect

@@ -320,6 +320,15 @@ void BBDX::WindowManager::applySurfaceShape(const QString &appId) {
         if (effectWindow->window()->resourceClass() != appId) {
             continue;
         }
+        // A window KWin retains for its close animation has no surface any
+        // more; re-regioning it would drop its blur entry mid-animation.
+        // Leave remnants with whatever they had. (X11 windows never have a
+        // Wayland surface, so the check is Wayland-only.)
+#ifndef BBDX_X11
+        if (!window->effectwindow()->surface()) {
+            continue;
+        }
+#endif
         // reconfigure() picks up the radius and invalidates the cache; the
         // region has to be rebuilt too because the kind decides which path
         // getFinalBlurRegion() takes.
@@ -396,7 +405,15 @@ bool BBDX::WindowManager::setSurfaceArrow(const QString &appId,
     rebuildSurfaceOverride(appId);
     // Geometry only: no region or radius change, a repaint is enough.
     for (const auto &[effectWindow, window] : m_windows) {
-        if (effectWindow->window()->resourceClass() == appId) {
+        if (effectWindow->window()->resourceClass() != appId) {
+            continue;
+        }
+#ifndef BBDX_X11
+        if (!window->effectwindow()->surface()) {
+            continue;
+        }
+#endif
+        {
             invalidateBlurCache(window->effectwindow(),
                                 static_cast<uint>(BlurCacheInvalidationFlag::REGION),
                                 "Surface arrow changed");

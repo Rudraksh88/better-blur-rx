@@ -82,6 +82,16 @@ private:
     // Only the dock's root layer surface can opt in via body+arrow metadata.
     // Native submenus keep their ordinary blur region and corner treatment.
     bool m_pointedMenu{false};
+    // Last wp_alpha_modifier factor the surface committed. KWin keeps a
+    // closing window alive for its close animation after the Wayland surface
+    // is gone; getEffectiveBlurOpacity() returns this instead of falling
+    // through to full opacity, so a stack/tooltip that faded to zero cannot
+    // regain blur for its remnant frames.
+    qreal m_lastSurfaceAlpha{1.0};
+    // Set once this window's blur opacity followed wp_alpha_modifier with a
+    // live surface. Sticky on purpose: the remnant must keep m_lastSurfaceAlpha
+    // even after the client cleared its published shape.
+    bool m_remnantAlphaCoupled{false};
 
     // track whether this window requested a blur region
     // and where it came from

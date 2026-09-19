@@ -36,6 +36,11 @@ Things not in any tagged release yet:
   and lets the arrow sit on any edge (side docks); windows with a published
   shape couple their blur opacity to `wp_alpha_modifier` like the dock
   tooltip. See docs/configuration.md and docs/surfboard-integration.md.
+- `capabilities()` on the same D-Bus object reports what the running build
+  and configuration support (`api=1`, `surface-shape`, `surface-arrow`,
+  `remnant-alpha`, `alpha-mask`, `alpha-mask-enabled`,
+  `alpha-mask-threshold=<v>`), so a client can tell "the API exists" from
+  "alpha masking is on" without reading kwinrc.
 - The override editor's "Squircle corner shape" checkbox is now a "Blur
   shape" combo covering all shape kinds; `pointed` and `squircle-flat` rules
   no longer get dropped when the KCM rewrites the rule list.
@@ -45,6 +50,14 @@ Things not in any tagged release yet:
   instead of being clipped by an integer client blur region.
 
 ### Bug Fixes
+- Windows with a published D-Bus shape (and `surfboard-tooltip`) keep the
+  last `wp_alpha_modifier` factor their surface committed while KWin retains
+  them for the close animation. Previously the opacity getter fell through
+  to full opacity once the Wayland surface was gone, so a popup that had
+  faded to zero regained full blur for its remnant frames. The coupling is
+  latched per window, so a client clearing its published shape while KWin
+  still animates the remnant cannot re-enable blur; `setSurfaceShape` /
+  `clearSurfaceShape` also leave surfaceless (closing) windows untouched.
 - Apply regular rounded-corner masks during the final cache composite, matching
   the squircle path. The old cache-stage pass sampled from and rendered into the
   same texture, an undefined OpenGL feedback loop that could produce flickering

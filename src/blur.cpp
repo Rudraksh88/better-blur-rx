@@ -368,6 +368,27 @@ QStringList BlurEffect::surfaceShapes() const
     return m_windowManager ? m_windowManager->surfaceShapes() : QStringList();
 }
 
+QStringList BlurEffect::capabilities() const
+{
+    QStringList caps{
+        QStringLiteral("api=1"),
+        QStringLiteral("surface-shape"),
+        QStringLiteral("surface-arrow"),
+    };
+#ifndef BBDX_X11
+    caps.append(QStringLiteral("remnant-alpha"));
+#endif
+#if !defined(BBDX_X11) && KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
+    caps.append(QStringLiteral("alpha-mask"));
+    if (m_windowManager && m_windowManager->alphaMaskEnabled()) {
+        caps.append(QStringLiteral("alpha-mask-enabled"));
+        caps.append(QStringLiteral("alpha-mask-threshold=%1")
+                        .arg(m_windowManager->alphaMaskThreshold(), 0, 'g', 4));
+    }
+#endif
+    return caps;
+}
+
 bool BlurEffect::previewDockSurfaces(double plateBlurRadius,
                                      double plateMaskInset,
                                      double squircleExponent,

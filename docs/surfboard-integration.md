@@ -112,8 +112,17 @@ bool        setSurfaceShape(string appId, string kind,
                             double arrowCenterX, double inset)
 bool        clearSurfaceShape(string appId)
 array<string> surfaceShapes()
+array<string> capabilities()
 signal      surfaceShapesReset()
 ```
+
+`capabilities()` returns tokens: `api=1`, `surface-shape`, `surface-arrow`,
+`remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask`, plus
+`alpha-mask-enabled` and `alpha-mask-threshold=<v>` when the global toggle
+is on. Use it at startup and after `surfaceShapesReset` to decide between
+`kind=alpha` and a geometric/plain-region fallback; a successful
+`setSurfaceShape` alone does not prove alpha masking is active (the
+`[alpha-diag]` journal lines do, per window).
 
 ### Arguments
 
@@ -199,6 +208,13 @@ surface's `wp_alpha_modifier` factor, exactly as `surfboard-tooltip` did by
 class. Fade a folder grid or fan with the alpha modifier and the blur fades
 in the same frame.
 
+KWin keeps a closing window alive for its close animation after the Wayland
+surface is destroyed. For these classes the effect keeps the last committed
+alpha factor for that retained window (`remnant-alpha` capability), so a
+surface that faded to zero does not regain full blur for its remnant frames.
+Surfboard's client-side barrier (clear the blur region, `wl_display_sync`,
+then hide) is still a good idea; the two compose.
+
 ## 4. Lifetime, startup and reload
 
 Published shapes are **in-memory**. They disappear when:
@@ -209,7 +225,8 @@ Published shapes are **in-memory**. They disappear when:
 
 Handle both:
 
-1. **On surfboard start**, publish all shapes. The object may not exist
+1. **On surfboard start**, call `capabilities()` and publish all shapes.
+   The object may not exist
    yet (KWin still starting, effect disabled): the call fails with
    `org.freedesktop.DBus.Error.UnknownObject` / `ServiceUnknown`. Treat a
    failure as "retry later", e.g. exponential backoff up to ~10 s, then

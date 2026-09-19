@@ -183,6 +183,20 @@ public Q_SLOTS:
     Q_SCRIPTABLE bool clearSurfaceShape(const QString &appId);
     /// One "appId kind radius exponent arrowCenterX inset" line per shape.
     Q_SCRIPTABLE QStringList surfaceShapes() const;
+    /**
+     * What this build and configuration can do, so a client can tell "the
+     * D-Bus API exists" from "alpha masking is actually on" without reading
+     * kwinrc. Tokens:
+     *   api=1                 contract version of the surface-shape methods
+     *   surface-shape         setSurfaceShape / clearSurfaceShape / surfaceShapes
+     *   surface-arrow         setSurfaceArrow (edge, height, ...)
+     *   remnant-alpha         published classes keep their last
+     *                         wp_alpha_modifier through the close animation
+     *   alpha-mask            kind=alpha is compiled in (Plasma 6.7 Wayland)
+     *   alpha-mask-enabled    the global AlphaMask toggle is on
+     *   alpha-mask-threshold=<v>  current AlphaMaskThreshold
+     */
+    Q_SCRIPTABLE QStringList capabilities() const;
     /// Update dock SDF geometry in memory for frame-grade Settings previews.
     Q_SCRIPTABLE bool previewDockSurfaces(double plateBlurRadius,
                                           double plateMaskInset,

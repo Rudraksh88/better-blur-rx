@@ -116,6 +116,7 @@ setSurfaceShape(appId, kind, radius, exponent, arrowCenterX, inset) -> bool
 setSurfaceArrow(appId, edge, height, halfWidth, shoulder, tipRadius, feather) -> bool
 clearSurfaceShape(appId) -> bool
 surfaceShapes() -> [string]
+capabilities() -> [string]
 ```
 
 - `kind`: `inherit` (or empty), `rounded`, `squircle`, `squircle-flat`,
@@ -144,7 +145,18 @@ Anything not published keeps coming from the config override that matches
 the class (exact, regex or `$blank`) or from the globals. Windows with a
 published shape or arrow also couple their blur opacity to
 `wp_alpha_modifier`, like the dock tooltip, so a client-side fade takes the
-blur with it.
+blur with it. The last committed factor is kept for the window KWin retains
+during its close animation (the Wayland surface is already gone by then), so
+a surface that faded to zero stays at zero blur instead of snapping back to
+full opacity for those frames.
+
+`capabilities()` reports what the running build and configuration can do,
+one token per entry: `api=1`, `surface-shape`, `surface-arrow`,
+`remnant-alpha`, `alpha-mask` (kind `alpha` is compiled in: Plasma 6.7,
+Wayland), `alpha-mask-enabled` (the global toggle is on) and
+`alpha-mask-threshold=<value>`. A client that needs alpha-masked blur should
+check for `alpha-mask-enabled` rather than infer it from a successful
+`setSurfaceShape`, which only proves the method exists.
 
 ```sh
 # squircle plate, radius 32, exponent 3.4, default inset
@@ -155,5 +167,6 @@ qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-folder-grid pointed 18 3.1 240 1
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceArrow surfboard-folder-grid bottom 12 10 5 2 -1
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX surfaceShapes
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX capabilities
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX clearSurfaceShape surfboard-plate
 ```
