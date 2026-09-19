@@ -16,6 +16,9 @@ uniform vec4 tooltipGeometry;
 // z = arrow centre offset from the body centre (device px, pre-clamped),
 // w = pointed body squircle exponent; 2 keeps a rounded rectangle
 uniform vec4 tooltipStyle;
+// Edge the pointed arrow sits on: 0 bottom, 1 top, 2 left, 3 right. The SDF
+// is written for the bottom edge; other edges are mapped onto it.
+uniform int arrowEdge;
 uniform float modulation;
 
 varying vec2 uv;
@@ -117,6 +120,22 @@ float sdfTooltipArrow(vec2 p, vec4 geometry)
 
 vec3 sdfPointedTooltipParts(vec2 p, vec4 bounds, float radius)
 {
+    // Canonicalise: box-local coordinates with the arrow edge at +y. Rigid
+    // mappings only, so derivative-based antialiasing is unaffected.
+    vec2 q = p - bounds.xy;
+    vec2 halfExtent = bounds.zw;
+    if (arrowEdge == 1) {
+        q.y = -q.y;
+    } else if (arrowEdge == 2) {
+        q = vec2(q.y, -q.x);
+        halfExtent = halfExtent.yx;
+    } else if (arrowEdge == 3) {
+        q = vec2(q.y, q.x);
+        halfExtent = halfExtent.yx;
+    }
+    p = q;
+    bounds = vec4(0.0, 0.0, halfExtent);
+
     float inset = tooltipStyle.x;
     float arrowHeight = tooltipGeometry.x;
     vec2 bodyCenter = vec2(bounds.x, bounds.y - arrowHeight * 0.5);

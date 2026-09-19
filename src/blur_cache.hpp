@@ -252,6 +252,7 @@ private:
         int shapeInsetLocation;
         int tooltipGeometryLocation;
         int tooltipStyleLocation;
+        int arrowEdgeLocation;
     } m_shapeTexturePass;
 
     struct {
@@ -365,7 +366,8 @@ public:
                           float shapeInset,
                           const QVector4D &tooltipGeometry,
                           const QVector4D &tooltipStyle,
-                          int shape) const;
+                          int shape,
+                          int arrowEdge = 0) const;
 
     /**
      * Final-composite a cached blur through the window's own alpha channel.

@@ -80,6 +80,22 @@ struct SurfaceShape {
     std::optional<qreal> arrowCenterX{};
     /// Mask inset in logical pixels (squircle plate / pointed body).
     std::optional<qreal> inset{};
+
+    // Pointed-arrow geometry, set with setSurfaceArrow. Unset = global.
+    /// 0 bottom, 1 top, 2 left, 3 right.
+    std::optional<int> arrowEdge{};
+    std::optional<qreal> arrowHeight{};
+    std::optional<qreal> arrowHalf{};
+    std::optional<qreal> arrowShoulder{};
+    std::optional<qreal> arrowTipRadius{};
+    std::optional<qreal> arrowFeather{};
+};
+
+enum class ArrowEdge : int {
+    Bottom = 0,
+    Top = 1,
+    Left = 2,
+    Right = 3,
 };
 
 class WindowManager : public QObject {
@@ -208,8 +224,26 @@ public:
                          std::optional<qreal> arrowCenterX,
                          std::optional<qreal> inset);
     bool clearSurfaceShape(const QString &appId);
-    /** One "appId kind radius exponent arrowCenterX inset" line per shape. */
+    /** Arrow geometry for a published class; creates the entry if needed. */
+    bool setSurfaceArrow(const QString &appId,
+                         std::optional<int> edge,
+                         std::optional<qreal> height,
+                         std::optional<qreal> halfWidth,
+                         std::optional<qreal> shoulder,
+                         std::optional<qreal> tipRadius,
+                         std::optional<qreal> feather);
+    /** One "appId kind radius exponent arrowCenter inset | edge h half shoulder tip feather" line per shape. */
     QStringList surfaceShapes() const;
+    /** Whether a shape (or arrow) was published for this window's class. */
+    bool hasSurfaceShape(const KWin::EffectWindow *w) const;
+
+    /** Pointed-arrow geometry for this window: published, else global. */
+    int pointedArrowEdgeFor(const KWin::EffectWindow *w) const;
+    qreal pointedArrowHeightFor(const KWin::EffectWindow *w) const;
+    qreal pointedArrowHalfFor(const KWin::EffectWindow *w) const;
+    qreal pointedArrowShoulderFor(const KWin::EffectWindow *w) const;
+    qreal pointedArrowTipRadiusFor(const KWin::EffectWindow *w) const;
+    qreal pointedArrowFeatherFor(const KWin::EffectWindow *w) const;
 
     /** Squircle exponent for this window: published shape, else global. */
     qreal squircleExponentFor(const KWin::EffectWindow *w) const;

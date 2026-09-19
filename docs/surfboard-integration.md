@@ -94,6 +94,8 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
 | `surfboard-menu` | pointed menu via two-rect contract | `kind=pointed` + `radius` over D-Bus, keep the contract until every install has this build | removes class + geometry sniffing |
 | `surfboard-settings-surface` | force-blurred, radius 20 | try `alpha` | CSD-style window, corners follow the drawn shape |
 | `surfboard-dialog` / `-dim` | force-blurred | `alpha` for the dialog, `region` for the dim layer | dim layer is a plain rectangle |
+| `surfboard-folder-grid` (new) | — | `pointed` + `setSurfaceArrow` (own arrow size, `edge` facing the dock) | same analytic body/arrow as the tooltip, per-surface geometry |
+| `surfboard-folder-fan` (new) | — | `alpha` with a tight blur region | arbitrary, animated silhouette; nothing to keep in sync |
 
 Whatever you pick, the shape is now a one-line D-Bus call away, so it is
 cheap to experiment.
@@ -160,13 +162,42 @@ so the arrow stays on the body, the same way surfboard's own drawing does.
 `radius`, `exponent` and `inset` are the same values you write to `kwinrc`
 today; nothing changes in their meaning, only in delivery.
 
-### What stays global for now
+### Arrow geometry and edge: `setSurfaceArrow`
 
-Arrow height / half-width / shoulder / tip radius / feather and the plate
-blur-radius preview remain globals (`PointedTooltip*` keys and
-`previewDockSurfaces`). They are the same for every pointed surface today,
-so per-surface variants were not added. If a per-surface need appears,
-extend `SurfaceShape` rather than adding another region contract.
+```
+bool setSurfaceArrow(string appId, string edge,
+                     double height, double halfWidth,
+                     double shoulder, double tipRadius, double feather)
+```
+
+| arg | meaning | inherit sentinel | clamp |
+| --- | --- | --- | --- |
+| `edge` | `bottom`, `top`, `left`, `right` | `""` / `inherit` = bottom | unknown → `false` |
+| `height` | arrow height, logical px | `< 0` | 0 … 64 |
+| `halfWidth` | half the arrow base, logical px | `< 0` | 0.5 … 64 |
+| `shoulder` | fillet between body and arrow flank, logical px | `< 0` | 0 … 64 |
+| `tipRadius` | tip rounding, logical px | `< 0` | 0 … 32 |
+| `feather` | antialiasing width multiplier | `< 0` | 0.25 … 4 |
+
+- Independent of `setSurfaceShape`: each call replaces only its own group
+  of fields. Calling `setSurfaceArrow` first creates the class entry with
+  every shape field inheriting. `clearSurfaceShape` removes both.
+- `edge` rotates the whole pointed mask. On `left`/`right`, the
+  `arrowCenterX` you publish with `setSurfaceShape` is read as frame-local
+  **y** (position along that edge). Side docks: publish the edge that faces
+  the dock.
+- Inherited values are the global `PointedTooltip*` keys, which remain the
+  defaults for every pointed surface.
+
+Only the plate blur-radius preview stays purely global
+(`previewDockSurfaces`).
+
+### Blur fades with `wp_alpha_modifier`
+
+Any window with a published shape or arrow couples its blur opacity to the
+surface's `wp_alpha_modifier` factor, exactly as `surfboard-tooltip` did by
+class. Fade a folder grid or fan with the alpha modifier and the blur fades
+in the same frame.
 
 ## 4. Lifetime, startup and reload
 
@@ -227,6 +258,11 @@ Do these in order; each step is independently shippable.
 - [ ] Publish `surfboard-menu` with `kind=pointed`, `radius` (today's
       `MenuRadius`) and `arrowCenterX`; later drop the "body + bottom
       rect" region shape and send a plain body rectangle.
+- [ ] Folder grid: `setSurfaceShape … pointed` + `setSurfaceArrow` with the
+      grid's own arrow size and the edge facing the dock; publish
+      `arrowCenterX` (or y for side docks) per opening.
+- [ ] Folder fan: request a blur region equal to the fan's bounding box,
+      publish `kind=alpha`; fade with `wp_alpha_modifier`.
 - [ ] Try `kind=alpha` on `surfboard-settings-surface` and
       `surfboard-dialog` with `AlphaMask` on; check corners and edge
       quality at fractional scale.

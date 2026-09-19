@@ -346,8 +346,14 @@ bool BBDX::WindowManager::setSurfaceShape(const QString &appId,
     if (appId.isEmpty()) {
         return false;
     }
-    SurfaceShape shape{kind, radius, exponent, arrowCenterX, inset};
-    m_surfaceShapes.insert(appId, std::move(shape));
+    // Shape fields are replaced as a set; arrow geometry published with
+    // setSurfaceArrow is kept.
+    SurfaceShape &shape = m_surfaceShapes[appId];
+    shape.kind = kind;
+    shape.radius = radius;
+    shape.exponent = exponent;
+    shape.arrowCenterX = arrowCenterX;
+    shape.inset = inset;
     rebuildSurfaceOverride(appId);
     applySurfaceShape(appId);
     qCInfo(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Surface shape set:" << appId << kind
@@ -368,20 +374,110 @@ bool BBDX::WindowManager::clearSurfaceShape(const QString &appId) {
     return true;
 }
 
+bool BBDX::WindowManager::setSurfaceArrow(const QString &appId,
+                                          std::optional<int> edge,
+                                          std::optional<qreal> height,
+                                          std::optional<qreal> halfWidth,
+                                          std::optional<qreal> shoulder,
+                                          std::optional<qreal> tipRadius,
+                                          std::optional<qreal> feather) {
+    if (appId.isEmpty()) {
+        return false;
+    }
+    // Arrow fields are replaced as a set; the shape fields are kept. A class
+    // without a published shape gets one that inherits everything else.
+    SurfaceShape &shape = m_surfaceShapes[appId];
+    shape.arrowEdge = edge;
+    shape.arrowHeight = height;
+    shape.arrowHalf = halfWidth;
+    shape.arrowShoulder = shoulder;
+    shape.arrowTipRadius = tipRadius;
+    shape.arrowFeather = feather;
+    rebuildSurfaceOverride(appId);
+    // Geometry only: no region or radius change, a repaint is enough.
+    for (const auto &[effectWindow, window] : m_windows) {
+        if (effectWindow->window()->resourceClass() == appId) {
+            invalidateBlurCache(window->effectwindow(),
+                                static_cast<uint>(BlurCacheInvalidationFlag::REGION),
+                                "Surface arrow changed");
+            window->effectwindow()->addRepaintFull();
+        }
+    }
+    static const char *const edgeNames[] = {"bottom", "top", "left", "right"};
+    qCInfo(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Surface arrow set:" << appId
+                           << "edge" << (edge ? edgeNames[std::clamp(*edge, 0, 3)] : "inherit")
+                           << "height" << (height ? QString::number(*height) : QStringLiteral("inherit"))
+                           << "half" << (halfWidth ? QString::number(*halfWidth) : QStringLiteral("inherit"))
+                           << "shoulder" << (shoulder ? QString::number(*shoulder) : QStringLiteral("inherit"))
+                           << "tip" << (tipRadius ? QString::number(*tipRadius) : QStringLiteral("inherit"))
+                           << "feather" << (feather ? QString::number(*feather) : QStringLiteral("inherit"));
+    return true;
+}
+
 QStringList BBDX::WindowManager::surfaceShapes() const {
     QStringList lines;
     const auto fmt = [](const std::optional<qreal> &v) {
         return v ? QString::number(*v) : QStringLiteral("inherit");
     };
+    static const char *const edgeNames[] = {"bottom", "top", "left", "right"};
     for (auto it = m_surfaceShapes.constBegin(); it != m_surfaceShapes.constEnd(); ++it) {
         const SurfaceShape &s = *it;
-        lines.append(QStringLiteral("%1 %2 %3 %4 %5 %6")
+        lines.append(QStringLiteral("%1 %2 %3 %4 %5 %6 | %7 %8 %9 %10 %11 %12")
                          .arg(it.key(),
                               s.kind.isEmpty() ? QStringLiteral("inherit") : s.kind,
-                              fmt(s.radius), fmt(s.exponent), fmt(s.arrowCenterX), fmt(s.inset)));
+                              fmt(s.radius), fmt(s.exponent), fmt(s.arrowCenterX), fmt(s.inset))
+                         .arg(s.arrowEdge ? QString::fromLatin1(edgeNames[std::clamp(*s.arrowEdge, 0, 3)]) : QStringLiteral("inherit"),
+                              fmt(s.arrowHeight), fmt(s.arrowHalf), fmt(s.arrowShoulder),
+                              fmt(s.arrowTipRadius), fmt(s.arrowFeather)));
     }
     lines.sort();
     return lines;
+}
+
+bool BBDX::WindowManager::hasSurfaceShape(const KWin::EffectWindow *w) const {
+    return surfaceShapeFor(w) != nullptr;
+}
+
+int BBDX::WindowManager::pointedArrowEdgeFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowEdge) {
+        return std::clamp(*shape->arrowEdge, 0, 3);
+    }
+    return static_cast<int>(ArrowEdge::Bottom);
+}
+
+qreal BBDX::WindowManager::pointedArrowHeightFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowHeight) {
+        return *shape->arrowHeight;
+    }
+    return m_pointedTooltipArrowHeight;
+}
+
+qreal BBDX::WindowManager::pointedArrowHalfFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowHalf) {
+        return *shape->arrowHalf;
+    }
+    return m_pointedTooltipArrowHalf;
+}
+
+qreal BBDX::WindowManager::pointedArrowShoulderFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowShoulder) {
+        return *shape->arrowShoulder;
+    }
+    return m_pointedTooltipShoulder;
+}
+
+qreal BBDX::WindowManager::pointedArrowTipRadiusFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowTipRadius) {
+        return *shape->arrowTipRadius;
+    }
+    return m_pointedTooltipTipRadius;
+}
+
+qreal BBDX::WindowManager::pointedArrowFeatherFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowFeather) {
+        return *shape->arrowFeather;
+    }
+    return m_pointedTooltipFeather;
 }
 
 qreal BBDX::WindowManager::squircleExponentFor(const KWin::EffectWindow *w) const {

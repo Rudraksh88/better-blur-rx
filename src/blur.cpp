@@ -318,6 +318,46 @@ bool BlurEffect::setSurfaceShape(const QString &appId,
                                             optional(inset, 0.0, 64.0));
 }
 
+bool BlurEffect::setSurfaceArrow(const QString &appId,
+                                 const QString &edge,
+                                 double height,
+                                 double halfWidth,
+                                 double shoulder,
+                                 double tipRadius,
+                                 double feather)
+{
+    if (!m_windowManager || appId.trimmed().isEmpty()) {
+        return false;
+    }
+    static const QStringList edges{
+        QStringLiteral("bottom"), QStringLiteral("top"),
+        QStringLiteral("left"), QStringLiteral("right"),
+    };
+    const QString normalizedEdge = edge.trimmed().toLower();
+    std::optional<int> edgeValue;
+    if (!normalizedEdge.isEmpty() && normalizedEdge != QStringLiteral("inherit")) {
+        const int index = edges.indexOf(normalizedEdge);
+        if (index < 0) {
+            qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX << "setSurfaceArrow: unknown edge" << edge;
+            return false;
+        }
+        edgeValue = index;
+    }
+    const auto optional = [](double value, double lo, double hi) -> std::optional<qreal> {
+        if (!std::isfinite(value) || value < 0.0) {
+            return std::nullopt;
+        }
+        return std::clamp<qreal>(value, lo, hi);
+    };
+    return m_windowManager->setSurfaceArrow(appId.trimmed(),
+                                            edgeValue,
+                                            optional(height, 0.0, 64.0),
+                                            optional(halfWidth, 0.5, 64.0),
+                                            optional(shoulder, 0.0, 64.0),
+                                            optional(tipRadius, 0.0, 32.0),
+                                            optional(feather, 0.25, 4.0));
+}
+
 bool BlurEffect::clearSurfaceShape(const QString &appId)
 {
     return m_windowManager && m_windowManager->clearSurfaceShape(appId.trimmed());
@@ -1557,17 +1597,24 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         const qreal tooltipInsetDevice =
             m_windowManager->pointedMaskInset(w) * viewport.scale();
         const qreal arrowHeightDevice =
-            m_windowManager->pointedTooltipArrowHeight() * viewport.scale();
-        const qreal bodyHalfWidth = std::max(0.0, nativeBox.width() * 0.5 - tooltipInsetDevice);
+            m_windowManager->pointedArrowHeightFor(w) * viewport.scale();
+        // The arrow may sit on any edge. "Along" is the axis the arrow slides
+        // on (x for bottom/top, y for left/right), "across" the one it points
+        // along; the shader maps everything onto the bottom-edge SDF.
+        const int arrowEdge = m_windowManager->pointedArrowEdgeFor(w);
+        const bool verticalEdge = arrowEdge >= static_cast<int>(BBDX::ArrowEdge::Left);
+        const qreal alongHalf = (verticalEdge ? nativeBox.height() : nativeBox.width()) * 0.5;
+        const qreal acrossHalf = (verticalEdge ? nativeBox.width() : nativeBox.height()) * 0.5;
+        const qreal bodyHalfWidth = std::max(0.0, alongHalf - tooltipInsetDevice);
         const qreal bodyHalfHeight = std::max(
             0.0,
-            nativeBox.height() * 0.5 - tooltipInsetDevice - arrowHeightDevice * 0.5);
+            acrossHalf - tooltipInsetDevice - arrowHeightDevice * 0.5);
         const qreal bodyRadiusDevice = std::min(
             {m_windowManager->pointedMaskBodyRadius(w) * viewport.scale(),
              bodyHalfWidth,
              bodyHalfHeight});
         qreal arrowHalfDevice = std::min(
-            m_windowManager->pointedTooltipArrowHalf() * viewport.scale(),
+            m_windowManager->pointedArrowHalfFor(w) * viewport.scale(),
             bodyHalfWidth * 0.44);
         qreal shoulderDevice = 0.0;
         qreal tipRadiusDevice = 0.0;
@@ -1577,9 +1624,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                 0.0,
                 bodyHalfWidth - bodyRadiusDevice - arrowHalfDevice - 2.0 * viewport.scale());
             const qreal requestedShoulder = std::min(
-                m_windowManager->pointedTooltipShoulder() * viewport.scale(), bodyRoom);
+                m_windowManager->pointedArrowShoulderFor(w) * viewport.scale(), bodyRoom);
             const qreal requestedTip =
-                m_windowManager->pointedTooltipTipRadius() * viewport.scale();
+                m_windowManager->pointedArrowTipRadiusFor(w) * viewport.scale();
             const qreal budget = flank * 0.98;
             const qreal shoulderReserve = std::min(requestedShoulder, budget * 0.125);
             tipRadiusDevice = std::min(requestedTip, std::max(0.0, budget - shoulderReserve));
@@ -1591,17 +1638,24 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
         const QVector4D tooltipGeometry(
             arrowHeightDevice, arrowHalfDevice, shoulderDevice, tipRadiusDevice);
-        // The arrow defaults to the body's horizontal centre. A pointed window
-        // that published an arrow position (Window::getFinalBlurRegion) moves
-        // it — device px, relative to the box centre, clamped so the joint
-        // stays on the body exactly like the client's own drawing clamps.
+        // The arrow defaults to the body's centre along its edge. A pointed
+        // window that published an arrow position (D-Bus, or mined from the
+        // region in Window::getFinalBlurRegion) moves it: device px relative
+        // to the box centre along the edge, clamped so the joint stays on the
+        // body exactly like the client's own drawing clamps. For left/right
+        // edges the published coordinate is a frame-local y.
         qreal arrowOffsetDevice = 0.0;
         if (pointedTooltipMask) {
-            if (const auto arrowCenterX = m_windowManager->pointedArrowCenterX(w)) {
-                const qreal arrowDeviceX =
-                    (w->frameGeometry().x() + *arrowCenterX * data.xScale()
-                     + data.xTranslation()) * viewport.scale()
-                    - scaledBackgroundRect.x();
+            if (const auto arrowCenter = m_windowManager->pointedArrowCenterX(w)) {
+                const qreal arrowDevice = verticalEdge
+                    ? (w->frameGeometry().y() + *arrowCenter * data.yScale()
+                       + data.yTranslation()) * viewport.scale()
+                        - scaledBackgroundRect.y()
+                    : (w->frameGeometry().x() + *arrowCenter * data.xScale()
+                       + data.xTranslation()) * viewport.scale()
+                        - scaledBackgroundRect.x();
+                const qreal boxCenterAlong = verticalEdge
+                    ? nativeBox.verticalCenter() : nativeBox.horizontalCenter();
                 const qreal arrowHalfExtent =
                     arrowHalfDevice + shoulderDevice;
                 const qreal maxOffset = std::max(
@@ -1610,12 +1664,12 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                         - bodyRadiusDevice
                         - arrowHalfExtent - 2.0 * viewport.scale());
                 arrowOffsetDevice = std::clamp(
-                    arrowDeviceX - nativeBox.horizontalCenter(), -maxOffset, maxOffset);
+                    arrowDevice - boxCenterAlong, -maxOffset, maxOffset);
             }
         }
         const QVector4D tooltipStyle(
             tooltipInsetDevice,
-            m_windowManager->pointedTooltipFeather(),
+            m_windowManager->pointedArrowFeatherFor(w),
             static_cast<float>(arrowOffsetDevice),
             m_windowManager->pointedTooltipSquircleExponent(w));
         m_blurCache->drawShapedCached(
@@ -1631,7 +1685,8 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             m_windowManager->shapeInsetFor(w) * viewport.scale(),
             tooltipGeometry,
             tooltipStyle,
-            shapeMask);
+            shapeMask,
+            arrowEdge);
     };
 
     // BBDX: rate limited

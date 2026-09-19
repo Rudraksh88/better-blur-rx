@@ -113,6 +113,7 @@ Values live in memory only; after an effect reload the
 
 ```
 setSurfaceShape(appId, kind, radius, exponent, arrowCenterX, inset) -> bool
+setSurfaceArrow(appId, edge, height, halfWidth, shoulder, tipRadius, feather) -> bool
 clearSurfaceShape(appId) -> bool
 surfaceShapes() -> [string]
 ```
@@ -129,14 +130,30 @@ surfaceShapes() -> [string]
 - `inset`: mask inset in logical px (squircle plate, pointed body). `< 0`
   inherits.
 
+`setSurfaceArrow` sets the pointed-arrow geometry for the class, independent
+of the shape fields (each call replaces its own group; `clearSurfaceShape`
+removes both):
+
+- `edge`: `bottom` (default), `top`, `left`, `right`. On `left`/`right` the
+  shape's `arrowCenterX` is read as a frame-local **y**.
+- `height`, `halfWidth`, `shoulder`, `tipRadius`: logical px; `< 0`
+  inherits the global `PointedTooltip*` value.
+- `feather`: antialiasing width multiplier (0.25–4); `< 0` inherits.
+
 Anything not published keeps coming from the config override that matches
-the class (exact, regex or `$blank`) or from the globals.
+the class (exact, regex or `$blank`) or from the globals. Windows with a
+published shape or arrow also couple their blur opacity to
+`wp_alpha_modifier`, like the dock tooltip, so a client-side fade takes the
+blur with it.
 
 ```sh
 # squircle plate, radius 32, exponent 3.4, default inset
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-plate squircle 32 3.4 -1 -1
 # move the tooltip arrow to x=57 without touching anything else
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-tooltip inherit -1 -1 57 -1
+# folder grid popover: pointed body, bigger arrow than the tooltip
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-folder-grid pointed 18 3.1 240 1
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceArrow surfboard-folder-grid bottom 12 10 5 2 -1
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX surfaceShapes
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX clearSurfaceShape surfboard-plate
 ```

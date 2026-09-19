@@ -31,7 +31,11 @@ Things not in any tagged release yet:
   exponent, pointed-arrow position and mask inset. Published values sit on
   top of the matching config override; unset fields inherit. The
   `surfaceShapesReset` signal tells clients to publish again after an
-  effect reload. See docs/configuration.md.
+  effect reload. `setSurfaceArrow(appId, edge, height, halfWidth,
+  shoulder, tipRadius, feather)` adds per-surface pointed-arrow geometry
+  and lets the arrow sit on any edge (side docks); windows with a published
+  shape couple their blur opacity to `wp_alpha_modifier` like the dock
+  tooltip. See docs/configuration.md and docs/surfboard-integration.md.
 - The override editor's "Squircle corner shape" checkbox is now a "Blur
   shape" combo covering all shape kinds; `pointed` and `squircle-flat` rules
   no longer get dropped when the KCM rewrites the rule list.

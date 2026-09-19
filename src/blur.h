@@ -161,7 +161,25 @@ public Q_SLOTS:
                                       double exponent,
                                       double arrowCenterX,
                                       double inset);
-    /// Remove a published shape; false if none was published for appId.
+    /**
+     * Publish the pointed-arrow geometry for one resource class. Creates the
+     * class entry if setSurfaceShape was not called yet; clearSurfaceShape
+     * removes both.
+     *
+     * edge: "bottom", "top", "left", "right"; "" or "inherit" = bottom.
+     *       For left/right the shape's arrowCenterX is read as frame-local y.
+     * height, halfWidth, shoulder, tipRadius: logical px; < 0 inherits the
+     *       global PointedTooltip* value.
+     * feather: antialiasing width multiplier (0.25..4); < 0 inherits.
+     */
+    Q_SCRIPTABLE bool setSurfaceArrow(const QString &appId,
+                                      const QString &edge,
+                                      double height,
+                                      double halfWidth,
+                                      double shoulder,
+                                      double tipRadius,
+                                      double feather);
+    /// Remove a published shape and arrow; false if none was published for appId.
     Q_SCRIPTABLE bool clearSurfaceShape(const QString &appId);
     /// One "appId kind radius exponent arrowCenterX inset" line per shape.
     Q_SCRIPTABLE QStringList surfaceShapes() const;

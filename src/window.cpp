@@ -708,7 +708,10 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
 
 qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
 #ifndef BBDX_X11
-    if (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")) {
+    // Surfaces with a published shape (and the dock tooltip by class) fade
+    // their blur with wp_alpha_modifier, see below.
+    if (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")
+        || m_windowManager->hasSurfaceShape(effectwindow())) {
         if (const auto *surface = effectwindow()->surface()) {
             // wp_alpha_modifier is committed with the tooltip buffer. GTK
             // pixel alpha (or an independent DBus animation) cannot keep the
