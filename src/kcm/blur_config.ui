@@ -481,6 +481,92 @@
             </item>
            </layout>
           </item>
+          <item>
+           <widget class="QFrame" name="sepCorners1">
+            <property name="frameShape">
+             <enum>QFrame::Shape::HLine</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Plain</enum>
+            </property>
+            <property name="cardSeparator" stdset="0">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelAlphaMask">
+              <property name="text">
+               <string>Shape blur by window alpha</string>
+              </property>
+              <property name="toolTip">
+               <string>Undecorated windows that request blur themselves (CSD apps, layer-shell panels and docks) get their blur shaped by their own alpha channel instead of the integer region they sent. Rounded and custom corners follow the window's own antialiasing.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerAlphaMask">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="ToggleSwitch" name="kcfg_AlphaMask"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelAlphaMaskThreshold">
+              <property name="text">
+               <string>Full-blur alpha</string>
+              </property>
+              <property name="toolTip">
+               <string>Window alpha at which blur reaches full strength. Lower it if a very translucent window loses blur; raise it to harden edges.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerAlphaMaskThreshold">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="kcfg_AlphaMaskThreshold">
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.010000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.050000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
          </layout>
         </widget>
        </item>
@@ -1659,14 +1745,48 @@
               </property>
              </widget>
             </item>
-            <item row="5" column="0" colspan="2">
-             <widget class="QCheckBox" name="overrideSquircleCheck">
+            <item row="5" column="0">
+             <widget class="QLabel" name="overrideShapeLabel">
               <property name="text">
-               <string>Squircle corner shape</string>
+               <string>Blur shape:</string>
               </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <widget class="QComboBox" name="overrideShapeCombo">
               <property name="toolTip">
-               <string>Let Better Blur replace an undecorated window's requested region with an antialiased superellipse using the configured radius.</string>
+               <string>How the blur behind this window is shaped. Squircle and pointed masks replace an undecorated window's requested region with an antialiased SDF. Window alpha shapes the blur by the window's own alpha channel regardless of the global scope. Requested region keeps the client's raw region and opts out of the alpha mask.</string>
               </property>
+              <item>
+               <property name="text">
+                <string>Inherit</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Squircle</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Squircle, flat bottom</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pointed (tooltip)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Window alpha</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Requested region</string>
+               </property>
+              </item>
              </widget>
             </item>
             <item row="6" column="0" colspan="2">

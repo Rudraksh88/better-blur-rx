@@ -84,6 +84,12 @@ struct BlurEffectData
      * Color transformation matrix (brightness, contrast, and saturation).
      */
     std::optional<QMatrix4x4> colorMatrix;
+
+    /// Alpha mask diagnostics: last composite path (-1 unknown, 0 geometric
+    /// fallback, 1 alpha) and when it was last logged.
+    int alphaPathState{-1};
+    std::chrono::steady_clock::time_point alphaPathLogged{};
+    bool alphaSampled{false};
 };
 
 class BlurEffect : public KWin::Effect

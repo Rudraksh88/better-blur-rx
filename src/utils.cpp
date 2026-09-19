@@ -1,6 +1,9 @@
 #include "utils.h"
 
 #include "kwin_compat.hpp"
+#include "kwin_texture_mirror.hpp"
+
+#include <scene/surfaceitem.h>
 
 #include <opengl/gltexture.h>
 #include <opengl/glframebuffer.h>
@@ -94,3 +97,54 @@ KWin::RegionF BBDX::regionTranslatedF(KWin::RegionF region, QPointF translation)
     return region.translated(translation);
 #endif
 }
+
+
+// ---- kwin_texture_mirror.hpp
+
+#if !defined(BBDX_X11) && KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
+KWin::GLTexture *BBDX::surfaceGLTexture(const KWin::SurfaceItem *item, const char **reason) {
+    const auto fail = [reason](const char *why) -> KWin::GLTexture * {
+        if (reason) {
+            *reason = why;
+        }
+        return nullptr;
+    };
+    if (!item) {
+        return fail("no surface item");
+    }
+    // KWin::Texture is only forward-declared in the packaged headers; the
+    // mirror replicates its layout (see kwin_texture_mirror.hpp).
+    const auto *mirror = reinterpret_cast<const BBDX::TextureOpenGLMirror *>(item->texture());
+    if (!mirror) {
+        return fail("surface has no texture yet");
+    }
+    const QSize bufferSize = item->bufferSize();
+    if (bufferSize.isEmpty()) {
+        return fail("empty buffer");
+    }
+    if (mirror->m_size.isEmpty()) {
+        return fail("texture not attached yet");
+    }
+    if (mirror->m_size != bufferSize) {
+        // Layout mismatch or a texture that doesn't describe this buffer:
+        // never trust the plane pointers.
+        return fail("texture size != buffer size (mirror mismatch?)");
+    }
+    if (mirror->m_planes.size() != 1 || !mirror->m_planes[0]) {
+        // Multi-planar (YUV) content has no usable alpha.
+        return fail("not a single-plane texture (YUV?)");
+    }
+    KWin::GLTexture *texture = mirror->m_planes[0];
+    if (texture->size() != bufferSize) {
+        return fail("GL texture size != buffer size");
+    }
+    return texture;
+}
+#else
+KWin::GLTexture *BBDX::surfaceGLTexture(const KWin::SurfaceItem *, const char **reason) {
+    if (reason) {
+        *reason = "alpha mask needs KWin >= 6.7";
+    }
+    return nullptr;
+}
+#endif

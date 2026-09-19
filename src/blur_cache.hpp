@@ -1,5 +1,9 @@
 #pragma once
 
+#include <QVarLengthArray>
+#include <QMatrix4x4>
+#include <QVector4D>
+
 #include "kwin_compat.hpp"
 #include "settings.hpp"
 
@@ -212,6 +216,22 @@ struct WallpaperData {
     QMetaObject::Connection connection;
 };
 
+/** Upper bound of surfaces the alpha mask pass samples (root + subsurfaces). */
+inline constexpr int kMaxAlphaMaskSurfaces = 4;
+
+/** One surface texture the alpha mask pass consults. */
+struct AlphaMaskSurface {
+    /// The surface's RGBA GL texture, bound to texture unit 1 + index for the draw.
+    KWin::GLTexture *texture{nullptr};
+    /// GLTexture::matrix(NormalizedCoordinates) of that texture.
+    QMatrix4x4 textureMatrix{};
+    /// Surface rect in device pixels, local to the scaledBackgroundRect: x, y, w, h.
+    QVector4D box{};
+    /// wp_viewporter source box normalised to the buffer size: x, y, w, h.
+    QVector4D bufferSource{};
+};
+using AlphaMaskSurfaces = QVarLengthArray<AlphaMaskSurface, kMaxAlphaMaskSurfaces>;
+
 class BlurCache : public QObject {
     Q_OBJECT
 private:
@@ -233,6 +253,18 @@ private:
         int tooltipGeometryLocation;
         int tooltipStyleLocation;
     } m_shapeTexturePass;
+
+    struct {
+        std::unique_ptr<KWin::GLShader> shader;
+        int mvpMatrixLocation;
+        int modulationLocation;
+        int alphaCountLocation;
+        int alphaThresholdLocation;
+        int alphaTexLocation[kMaxAlphaMaskSurfaces];
+        int alphaTexMatrixLocation[kMaxAlphaMaskSurfaces];
+        int surfaceBoxLocation[kMaxAlphaMaskSurfaces];
+        int bufferSourceLocation[kMaxAlphaMaskSurfaces];
+    } m_alphaTexturePass;
 
     // pointer to the managing effect
     BlurEffect *m_effect{nullptr};
@@ -334,6 +366,21 @@ public:
                           const QVector4D &tooltipGeometry,
                           const QVector4D &tooltipStyle,
                           int shape) const;
+
+    /**
+     * Final-composite a cached blur through the window's own alpha channel.
+     *
+     * surfaces holds the root surface and any subsurfaces to consult (at most
+     * kMaxAlphaMaskSurfaces, at least one); coverage is their maximum alpha,
+     * saturating at alphaThreshold.
+     */
+    void drawAlphaMaskedCached(const KWin::RenderViewport &viewport,
+                               BBDX::BlurRenderData &renderInfo,
+                               KWin::GLVertexBuffer *vbo,
+                               int vertexCount,
+                               float modulation,
+                               const AlphaMaskSurfaces &surfaces,
+                               float alphaThreshold) const;
 
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache

@@ -156,6 +156,8 @@ void BBDX::WindowManager::reconfigure() {
     m_blurMenus = config->blurMenus();
 
     m_userBorderRadius = config->cornerRadius();
+    m_alphaMask = config->alphaMask();
+    m_alphaMaskThreshold = std::clamp<qreal>(config->alphaMaskThreshold(), 0.01, 1.0);
 
     m_brightness = config->brightness() / 100.0;
     m_saturation = config->saturation() / 100.0;
@@ -234,6 +236,8 @@ void BBDX::WindowManager::reconfigure() {
         o.squircle = o.flatBottom
             || maskKind.compare(QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
         o.pointed = maskKind.compare(QStringLiteral("pointed"), Qt::CaseInsensitive) == 0;
+        o.alphaMask = maskKind.compare(QStringLiteral("alpha"), Qt::CaseInsensitive) == 0;
+        o.rawRegion = maskKind.compare(QStringLiteral("region"), Qt::CaseInsensitive) == 0;
 
         windowOverrides.append(std::move(o));
     }
@@ -326,6 +330,26 @@ std::optional<QMatrix4x4> BBDX::WindowManager::getColorMatrixOverride(const KWin
 bool BBDX::WindowManager::usesSquircleMask(const KWin::EffectWindow *w) const {
     const WindowOverride *o = overrideFor(w);
     return o && o->squircle;
+}
+
+bool BBDX::WindowManager::usesAlphaMask(const KWin::EffectWindow *w) const {
+    if (!m_alphaMask) {
+        return false;
+    }
+    const WindowOverride *o = overrideFor(w);
+    if (o && (o->squircle || o->pointed || o->rawRegion)) {
+        return false;
+    }
+    if (usesPointedTooltipMask(w) || usesMenuMask(w)) {
+        return false;
+    }
+    if (o && o->alphaMask) {
+        return true;
+    }
+    // Default scope: undecorated surfaces that asked for blur themselves.
+    // Force-blurred windows keep the geometric path unless they opt in, so
+    // an intentionally translucent app never loses blur to its own alpha.
+    return !w->hasDecoration() && blurRequestedByClient(w);
 }
 
 bool BBDX::WindowManager::blurRequestedByClient(const KWin::EffectWindow *w) const {

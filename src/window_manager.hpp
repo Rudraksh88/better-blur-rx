@@ -52,6 +52,10 @@ struct WindowOverride {
     std::optional<qreal> contrast{};
     bool squircle{false};
     bool pointed{false};
+    /// Shape the blur by the window's alpha channel (forces AlphaMask on).
+    bool alphaMask{false};
+    /// Keep the client's raw blur region (opts out of AlphaMask).
+    bool rawRegion{false};
     /// The docked plate's squircle keeps its top radii but meets the screen
     /// edge with square lower corners.
     bool flatBottom{false};
@@ -88,6 +92,8 @@ private:
 
     // user configured border radius
     qreal m_userBorderRadius{0.0};
+    bool m_alphaMask{false};
+    qreal m_alphaMaskThreshold{0.5};
 
     // global color params (relative to 1.0), used to fill in
     // inherited values for window-specific overrides
@@ -185,6 +191,20 @@ public:
 
     /** Whether the matching override requests a superellipse corner mask. */
     bool usesSquircleMask(const KWin::EffectWindow *w) const;
+
+    /**
+     * Whether this window's blur is shaped by its own alpha channel.
+     *
+     * Requires the global AlphaMask toggle. Explicit SDF overrides (squircle,
+     * pointed) and the menu mask keep priority; a "region" override opts out.
+     * Otherwise an "alpha" override always qualifies, and by default so does
+     * any undecorated surface that requested blur itself, i.e. the class of
+     * CSD / layer-shell windows whose integer wl_region would otherwise draw
+     * aliased corners.
+     */
+    bool usesAlphaMask(const KWin::EffectWindow *w) const;
+    bool alphaMaskEnabled() const { return m_alphaMask; }
+    qreal alphaMaskThreshold() const { return m_alphaMaskThreshold; }
 
     /** Whether the client asked for this surface's blur itself. */
     bool blurRequestedByClient(const KWin::EffectWindow *w) const;

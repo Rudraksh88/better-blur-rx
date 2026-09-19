@@ -340,7 +340,11 @@ void BlurEffectConfig::setupWindowOverrides()
     connect(ui.overrideBrightnessBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
     connect(ui.overrideSaturationBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
     connect(ui.overrideContrastBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
-    connect(ui.overrideSquircleCheck, &QCheckBox::toggled, this, &BlurEffectConfig::applyEditorToRule);
+    connect(ui.overrideShapeCombo, &QComboBox::currentIndexChanged, this, &BlurEffectConfig::applyEditorToRule);
+
+    // The alpha threshold only matters while the alpha mask is on.
+    connect(ui.kcfg_AlphaMask, &QAbstractButton::toggled, ui.kcfg_AlphaMaskThreshold, &QWidget::setEnabled);
+    ui.kcfg_AlphaMaskThreshold->setEnabled(ui.kcfg_AlphaMask->isChecked());
 
     // The hidden kcfg_WindowOverrides text edit is the source of truth managed by
     // KConfigSkeleton. Mirror its content into the rule list whenever it changes
@@ -383,8 +387,7 @@ void BlurEffectConfig::rebuildRulesFromText()
         rule.brightness = parseInt(FieldBrightness);
         rule.saturation = parseInt(FieldSaturation);
         rule.contrast = parseInt(FieldContrast);
-        rule.squircle = fields.value(FieldShape).trimmed().compare(
-            QStringLiteral("squircle"), Qt::CaseInsensitive) == 0;
+        rule.shape = fields.value(FieldShape).trimmed().toLower();
 
         m_overrideRules.append(rule);
     }
@@ -424,8 +427,8 @@ void BlurEffectConfig::writeRulesToText()
             rule.saturation ? QString::number(*rule.saturation) : QString(),
             rule.contrast ? QString::number(*rule.contrast) : QString(),
         };
-        if (rule.squircle) {
-            fields.append(QStringLiteral("squircle"));
+        if (!rule.shape.isEmpty()) {
+            fields.append(rule.shape);
         }
         lines.append(fields.join(QChar('\t')));
     }
@@ -438,6 +441,31 @@ void BlurEffectConfig::writeRulesToText()
         ui.kcfg_WindowOverrides->setPlainText(serialized);
         m_syncingOverrides = false;
     }
+}
+
+// Combo index <-> serialized shape field. Index 0 is "inherit" (empty).
+static const QStringList &shapeComboValues()
+{
+    static const QStringList values{
+        QString(),
+        QStringLiteral("squircle"),
+        QStringLiteral("squircle-flat"),
+        QStringLiteral("pointed"),
+        QStringLiteral("alpha"),
+        QStringLiteral("region"),
+    };
+    return values;
+}
+
+int BlurEffectConfig::shapeComboIndex(const QString &shape)
+{
+    const int index = shapeComboValues().indexOf(shape.trimmed().toLower());
+    return index < 0 ? 0 : index;
+}
+
+QString BlurEffectConfig::shapeComboValue(int index)
+{
+    return shapeComboValues().value(index);
 }
 
 void BlurEffectConfig::loadEditorFromRule(int row)
@@ -463,14 +491,14 @@ void BlurEffectConfig::loadEditorFromRule(int row)
         ui.overrideContrastCheck->setChecked(rule.contrast.has_value());
         ui.overrideContrastBox->setEnabled(rule.contrast.has_value());
         ui.overrideContrastBox->setValue(rule.contrast.value_or(ui.kcfg_Contrast->value()));
-        ui.overrideSquircleCheck->setChecked(rule.squircle);
+        ui.overrideShapeCombo->setCurrentIndex(shapeComboIndex(rule.shape));
     } else {
         ui.overrideClassEdit->clear();
         for (QCheckBox *check : {ui.overrideRadiusCheck, ui.overrideBrightnessCheck,
-                                 ui.overrideSaturationCheck, ui.overrideContrastCheck,
-                                 ui.overrideSquircleCheck}) {
+                                 ui.overrideSaturationCheck, ui.overrideContrastCheck}) {
             check->setChecked(false);
         }
+        ui.overrideShapeCombo->setCurrentIndex(0);
     }
     m_loadingEditor = false;
 }
@@ -495,7 +523,12 @@ void BlurEffectConfig::applyEditorToRule()
         ? std::optional<int>(ui.overrideSaturationBox->value()) : std::nullopt;
     rule.contrast = ui.overrideContrastCheck->isChecked()
         ? std::optional<int>(ui.overrideContrastBox->value()) : std::nullopt;
-    rule.squircle = ui.overrideSquircleCheck->isChecked();
+    // A shape value the editor doesn't know (index 0 with a non-empty shape)
+    // is left as it was so hand-edited config never gets flattened.
+    const int shapeIndex = ui.overrideShapeCombo->currentIndex();
+    if (shapeIndex > 0 || shapeComboIndex(rule.shape) != 0 || rule.shape.isEmpty()) {
+        rule.shape = shapeComboValue(shapeIndex);
+    }
 
     updateOverrideItemLabel(row);
     writeRulesToText();
@@ -525,8 +558,10 @@ void BlurEffectConfig::updateOverrideItemLabel(int row)
     if (rule.contrast) {
         parts.append(QStringLiteral("contrast %1%").arg(*rule.contrast));
     }
-    if (rule.squircle) {
-        parts.append(QStringLiteral("squircle corners"));
+    if (!rule.shape.isEmpty()) {
+        const int index = shapeComboIndex(rule.shape);
+        parts.append(index > 0 ? ui.overrideShapeCombo->itemText(index).toLower()
+                               : QStringLiteral("shape %1").arg(rule.shape));
     }
     item->setToolTip(parts.isEmpty()
         ? QStringLiteral("No overrides set — everything inherited") : parts.join(QStringLiteral(", ")));

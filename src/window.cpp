@@ -545,6 +545,17 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         return;
     }
 
+    // An alpha-masked window hands boundary ownership to its own alpha
+    // channel. The client's region is usually a stair of integer rects that
+    // approximates its rounded corners, and the mask can only remove
+    // coverage, never add it, so widen the coarse region to the bounding
+    // rect. The alpha pass then carves the exact antialiased silhouette.
+    // Origin bookkeeping is untouched: the client still requested this blur.
+    if (content.has_value() && !content->isEmpty()
+        && m_windowManager->usesAlphaMask(effectwindow())) {
+        content = KWin::RegionF(content->boundingRect());
+    }
+
     // Respect exact blur regions supplied by trusted client-shaped surfaces.
     // We used to respect all requested blur regions but some are just
     // completely bogus (e.g. some KDE apps using Breeze like setting just part of the window blurred

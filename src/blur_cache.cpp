@@ -261,6 +261,34 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
     blurCache->m_shapeTexturePass.tooltipStyleLocation =
         blurCache->m_shapeTexturePass.shader->uniformLocation("tooltipStyle");
 
+    blurCache->m_alphaTexturePass.shader = KWin::ShaderManager::instance()->generateShaderFromFile(
+        KWin::ShaderTrait::MapTexture,
+        BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/rounded_corners.vert"),
+        BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/alpha_mask.frag")
+    );
+    if (!blurCache->m_alphaTexturePass.shader) {
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Failed to load alpha mask texture pass shader";
+        return nullptr;
+    }
+    blurCache->m_alphaTexturePass.mvpMatrixLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("modelViewProjectionMatrix");
+    blurCache->m_alphaTexturePass.modulationLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("modulation");
+    blurCache->m_alphaTexturePass.alphaCountLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("alphaCount");
+    blurCache->m_alphaTexturePass.alphaThresholdLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("alphaThreshold");
+    for (int i = 0; i < kMaxAlphaMaskSurfaces; ++i) {
+        // Array elements are queried one by one: GL only guarantees a
+        // location for "name[0]", not consecutive ones.
+        const QByteArray index = QByteArray::number(i);
+        auto &pass = blurCache->m_alphaTexturePass;
+        pass.alphaTexLocation[i] = pass.shader->uniformLocation(("alphaTex" + index).constData());
+        pass.alphaTexMatrixLocation[i] = pass.shader->uniformLocation(("alphaTexMatrix[" + index + "]").constData());
+        pass.surfaceBoxLocation[i] = pass.shader->uniformLocation(("surfaceBox[" + index + "]").constData());
+        pass.bufferSourceLocation[i] = pass.shader->uniformLocation(("bufferSource[" + index + "]").constData());
+    }
+
     return blurCache;
 }
 
@@ -510,6 +538,63 @@ void BBDX::BlurCache::drawShapedCached(const KWin::RenderViewport &viewport,
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     vbo->draw(GL_TRIANGLES, vboStartScreen(), vertexCount);
     glDisable(GL_BLEND);
+    KWin::ShaderManager::instance()->popShader();
+}
+
+void BBDX::BlurCache::drawAlphaMaskedCached(const KWin::RenderViewport &viewport,
+                                            BBDX::BlurRenderData &renderInfo,
+                                            KWin::GLVertexBuffer *vbo,
+                                            int vertexCount,
+                                            float modulation,
+                                            const AlphaMaskSurfaces &surfaces,
+                                            float alphaThreshold) const {
+    const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
+    auto *cacheEntry = renderInfo.cache.get();
+    if (!cacheEntry) {
+        qCritical(BLUR_CACHE) << BBDX::LOG_PREFIX << "drawAlphaMaskedCached() called without a valid cache entry";
+        return;
+    }
+    const int count = std::min<int>(surfaces.size(), kMaxAlphaMaskSurfaces);
+    if (count < 1) {
+        qCritical(BLUR_CACHE) << BBDX::LOG_PREFIX << "drawAlphaMaskedCached() called without surfaces";
+        return;
+    }
+
+    KWin::ShaderManager::instance()->pushShader(m_alphaTexturePass.shader.get());
+    QMatrix4x4 projectionMatrix = viewport.projectionMatrix();
+    projectionMatrix.translate(scaledBackgroundRect.x(), scaledBackgroundRect.y());
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.mvpMatrixLocation, projectionMatrix);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.modulationLocation, modulation);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaCountLocation, count);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaThresholdLocation, alphaThreshold);
+    for (int i = 0; i < count; ++i) {
+        const AlphaMaskSurface &surface = surfaces[i];
+        m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaTexLocation[i], 1 + i);
+        m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaTexMatrixLocation[i], surface.textureMatrix);
+        m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.surfaceBoxLocation[i], surface.box);
+        m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.bufferSourceLocation[i], surface.bufferSource);
+    }
+
+    // The window textures are KWin's; only bind them, never change their
+    // sampler state. Coordinates outside a surface are rejected in the shader.
+    for (int i = 0; i < count; ++i) {
+        glActiveTexture(GL_TEXTURE1 + i);
+        surfaces[i].texture->bind();
+    }
+    glActiveTexture(GL_TEXTURE0);
+    cacheEntry->cachedTexture()->bind();
+    cacheEntry->flushed(m_paintData);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    vbo->draw(GL_TRIANGLES, vboStartScreen(), vertexCount);
+    glDisable(GL_BLEND);
+
+    for (int i = 0; i < count; ++i) {
+        glActiveTexture(GL_TEXTURE1 + i);
+        surfaces[i].texture->unbind();
+    }
+    glActiveTexture(GL_TEXTURE0);
     KWin::ShaderManager::instance()->popShader();
 }
 

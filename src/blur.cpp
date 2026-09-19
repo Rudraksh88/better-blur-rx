@@ -38,6 +38,8 @@
 #include <scene/scene.h>
 #include <scene/surfaceitem.h>
 #include <scene/windowitem.h>
+#include "kwin_texture_mirror.hpp"
+#include <scene/windowitem.h>
 #include <utils/xcbutils.h>
 #if KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
 #include <wayland/blur.h>
@@ -70,6 +72,7 @@
 #include <KDecoration3/Decoration>
 
 #include <algorithm>
+#include <opengl/glframebuffer.h>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -1251,8 +1254,222 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                : (!cornerRadius.isNull() && m_windowManager->usesSquircleMask(w)
                       ? (flatBottomSquircleMask ? 3 : 1)
                       : 0));
+    // The alpha mask replaces every geometric mask below for eligible windows;
+    // usesAlphaMask() already yields to explicit SDF overrides and menus.
+    const bool alphaMask = shapeMask == 0 && !pointedTooltipMask && !menuMask
+        && m_windowManager->usesAlphaMask(w);
+    // Composite through the window's own alpha channel. False when the surface
+    // texture isn't usable this frame (no texture yet, YUV, rotated buffer,
+    // opaque format, mirror mismatch); the caller then falls back.
+    // Diagnostics: the composite path is logged whenever it changes for a
+    // window (alpha <-> geometric fallback), rate limited, so a silently
+    // degraded or oscillating mask is visible in the journal without
+    // per-frame spam.
+    const char *alphaFallbackReason = nullptr;
+    int alphaCandidateCount = 0;
+    QVector4D alphaRootBox;
+    const auto alphaFallback = [&](const char *reason) {
+        alphaFallbackReason = reason;
+        return false;
+    };
+    const auto noteAlphaPath = [&](bool usedAlpha) {
+        const int state = usedAlpha ? 1 : 0;
+        if (state == blurInfo.alphaPathState) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (now - blurInfo.alphaPathLogged < std::chrono::milliseconds(250)) {
+            return;
+        }
+        blurInfo.alphaPathState = state;
+        blurInfo.alphaPathLogged = now;
+        if (usedAlpha) {
+            qCInfo(KWIN_BLUR) << BBDX::LOG_PREFIX << "[alpha-diag]" << w->window()->resourceClass()
+                                 << "-> alpha path, surfaces:" << alphaCandidateCount
+                                 << "root box:" << alphaRootBox
+                                 << "bg:" << scaledBackgroundRect.width() << "x" << scaledBackgroundRect.height();
+        } else {
+            qCInfo(KWIN_BLUR) << BBDX::LOG_PREFIX << "[alpha-diag]" << w->window()->resourceClass()
+                                 << "-> geometric fallback:" << (alphaFallbackReason ? alphaFallbackReason : "unknown");
+        }
+    };
+    // Debug only: one-time readback of the root texture's alpha at five
+    // points, to tell a translucent surface from a transparent blur carrier.
+    // Enable with QT_LOGGING_RULES="kwin_effect_better_blur_dx.debug=true".
+    const auto sampleAlphaOnce = [&](GLTexture *texture) {
+        if (blurInfo.alphaSampled || !KWIN_BLUR().isDebugEnabled()) {
+            return;
+        }
+        blurInfo.alphaSampled = true;
+        GLFramebuffer fbo(texture);
+        if (!fbo.valid()) {
+            return;
+        }
+        const int tw = texture->width();
+        const int th = texture->height();
+        const QPoint points[5] = {
+            {tw / 2, th / 2}, {tw / 4, th / 4}, {3 * tw / 4, th / 4}, {tw / 4, 3 * th / 4}, {3 * tw / 4, 3 * th / 4}};
+        QStringList alphas;
+        GLFramebuffer::pushFramebuffer(&fbo);
+        for (const QPoint &p : points) {
+            unsigned char rgba[4] = {0, 0, 0, 0};
+            glReadPixels(p.x(), p.y(), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+            alphas.append(QString::number(rgba[3] / 255.0, 'f', 2));
+        }
+        GLFramebuffer::popFramebuffer();
+        qCDebug(KWIN_BLUR) << BBDX::LOG_PREFIX << "[alpha-diag]" << w->window()->resourceClass()
+                           << "root texture" << tw << "x" << th
+                             << "alpha at center/quarters:" << alphas.join(QStringLiteral(" "));
+    };
+    const auto drawAlphaMasked = [&](float modulation) -> bool {
+        WindowItem *windowItem = w->windowItem();
+        SurfaceItem *rootItem = windowItem ? windowItem->surfaceItem() : nullptr;
+        if (!rootItem) {
+            return alphaFallback("no surface item");
+        }
+
+        // Root surface plus subsurfaces. GTK4 graphics offload moves a
+        // widget's dmabuf into a subsurface and punches a transparent hole in
+        // the root, toggling frame by frame; video players park their content
+        // in one permanently. Coverage is the union (max alpha) over them.
+        QVarLengthArray<SurfaceItem *, 8> items;
+        const auto collect = [&items](auto &&self, Item *item) -> void {
+            if (auto *surface = qobject_cast<SurfaceItem *>(item)) {
+                items.append(surface);
+            }
+            const QList<Item *> children = item->childItems();
+            for (Item *child : children) {
+                self(self, child);
+            }
+        };
+        collect(collect, rootItem);
+
+        const RectF frame = w->frameGeometry();
+        const RectF backgroundDevice(0.0, 0.0, scaledBackgroundRect.width(), scaledBackgroundRect.height());
+        struct Candidate {
+            BBDX::AlphaMaskSurface surface;
+            qreal area;
+            bool root;
+        };
+        QVarLengthArray<Candidate, 8> candidates;
+        const char *rootSkipReason = nullptr;
+        for (SurfaceItem *surfaceItem : items) {
+            const bool isRoot = surfaceItem == rootItem;
+            const auto skip = [&](const char *reason) {
+                if (isRoot) {
+                    rootSkipReason = reason;
+                }
+            };
+            if (!surfaceItem->hasAlphaChannel()) {
+                skip("opaque buffer format");
+                continue;
+            }
+            if (surfaceItem->bufferTransform().kind() != OutputTransform::Normal) {
+                skip("transformed buffer");
+                continue;
+            }
+            // KWin attaches a committed buffer to the item's texture lazily,
+            // in ItemRendererOpenGL::createRenderNode() -> Item::preprocess(),
+            // which runs after effects have drawn. On a frame where the buffer
+            // was resized the texture still has the previous size here, so
+            // every resize frame would fall back to the geometric mask and the
+            // blur would flicker (seen on the dock's magnify animation). Run
+            // the same preprocess step now: it is idempotent, KWin's later
+            // call finds a matching size and no pending damage. Item's
+            // override is public; SurfaceItem only narrows its visibility.
+            static_cast<Item *>(surfaceItem)->preprocess();
+            const char *textureReason = nullptr;
+            GLTexture *alphaTexture = BBDX::surfaceGLTexture(surfaceItem, &textureReason);
+            if (!alphaTexture) {
+                skip(textureReason);
+                continue;
+            }
+            if (alphaTexture->target() != GL_TEXTURE_2D) {
+                skip("non-2D texture target");
+                continue;
+            }
+            const QSize bufferSize = surfaceItem->bufferSize();
+            const RectF sourceBox = surfaceItem->bufferSourceBox();
+            if (bufferSize.isEmpty() || sourceBox.isEmpty()) {
+                skip("empty buffer or source box");
+                continue;
+            }
+
+            // Surface in scene (logical) coordinates, carried through the same
+            // window transform the blur shape received, into device pixels
+            // local to the blur's background rect. Not rounded: the texture is
+            // sampled, so sub-pixel placement is exactly what keeps the
+            // client's antialiasing where the client put it.
+            const RectF surfaceScene = surfaceItem->mapToScene(surfaceItem->rect());
+            const RectF transformedSurface{
+                frame.x() + (surfaceScene.x() - frame.x()) * data.xScale() + data.xTranslation(),
+                frame.y() + (surfaceScene.y() - frame.y()) * data.yScale() + data.yTranslation(),
+                surfaceScene.width() * data.xScale(),
+                surfaceScene.height() * data.yScale(),
+            };
+            const RectF deviceSurface = transformedSurface
+                                            .scaled(viewport.scale())
+                                            .translated(-scaledBackgroundRect.x(), -scaledBackgroundRect.y());
+            const RectF visible = deviceSurface.intersected(backgroundDevice);
+            if (visible.isEmpty()) {
+                skip("surface outside blur area");
+                continue;
+            }
+            candidates.append(Candidate{
+                BBDX::AlphaMaskSurface{
+                    alphaTexture,
+                    alphaTexture->matrix(NormalizedCoordinates),
+                    QVector4D(deviceSurface.x(), deviceSurface.y(),
+                              deviceSurface.width(), deviceSurface.height()),
+                    QVector4D(sourceBox.x() / bufferSize.width(),
+                              sourceBox.y() / bufferSize.height(),
+                              sourceBox.width() / bufferSize.width(),
+                              sourceBox.height() / bufferSize.height()),
+                },
+                visible.width() * visible.height(),
+                isRoot,
+            });
+        }
+        if (candidates.isEmpty()) {
+            return alphaFallback(rootSkipReason ? rootSkipReason : "no usable surface texture");
+        }
+        // Root first, then the largest subsurfaces; the shader takes at most
+        // kMaxAlphaMaskSurfaces.
+        std::stable_sort(candidates.begin(), candidates.end(), [](const Candidate &a, const Candidate &b) {
+            if (a.root != b.root) {
+                return a.root;
+            }
+            return a.area > b.area;
+        });
+        BBDX::AlphaMaskSurfaces surfaces;
+        for (const Candidate &candidate : candidates) {
+            if (surfaces.size() >= BBDX::kMaxAlphaMaskSurfaces) {
+                break;
+            }
+            surfaces.append(candidate.surface);
+        }
+        alphaCandidateCount = surfaces.size();
+        alphaRootBox = surfaces[0].box;
+        sampleAlphaOnce(surfaces[0].texture);
+        m_blurCache->drawAlphaMaskedCached(
+            viewport,
+            renderInfo,
+            vbo,
+            vertexCount,
+            modulation,
+            surfaces,
+            static_cast<float>(m_windowManager->alphaMaskThreshold()));
+        return true;
+    };
     const auto drawFinalCached = [&]() {
         const float modulation = opacity * opacity;
+        if (alphaMask) {
+            const bool usedAlpha = drawAlphaMasked(modulation);
+            noteAlphaPath(usedAlpha);
+            if (usedAlpha) {
+                return;
+            }
+        }
         if (cornerRadius.isNull() && !pointedTooltipMask && !menuMask) {
             m_blurCache->drawCached(viewport, renderInfo, vbo, vertexCount, modulation);
             return;

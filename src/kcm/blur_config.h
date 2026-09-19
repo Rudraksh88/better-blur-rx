@@ -62,12 +62,16 @@ private:
         std::optional<int> brightness;
         std::optional<int> saturation;
         std::optional<int> contrast;
-        bool squircle{false};
+        // Empty = inherit. "squircle", "squircle-flat", "pointed", "alpha"
+        // or "region"; unknown values round-trip untouched.
+        QString shape;
     };
 
     void setupWindowOverrides();
     void rebuildRulesFromText();
     void writeRulesToText();
+    static int shapeComboIndex(const QString &shape);
+    static QString shapeComboValue(int index);
     void loadEditorFromRule(int row);
     void applyEditorToRule();
     void updateOverrideItemLabel(int row);

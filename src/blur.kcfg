@@ -27,6 +27,17 @@
         <entry name="CornerRadius" type="Double">
             <default>0.0</default>
         </entry>
+        <!-- Alpha mask: shape the blur of undecorated, client-requested blur
+             surfaces by the window's own alpha channel instead of the
+             integer wl_region. AlphaMaskThreshold is the surface alpha at
+             which blur coverage reaches 100%; lower values keep more blur
+             under very translucent fills, higher values harden edges. -->
+        <entry name="AlphaMask" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="AlphaMaskThreshold" type="Double">
+            <default>0.5</default>
+        </entry>
         <!-- Force Blur -->
         <entry name="WindowClasses" type="String">
             <default>class1
@@ -52,7 +63,10 @@ class3</default>
              One row per line, tab separated:
                <class>\t<cornerRadius>\t<brightness>\t<saturation>\t<contrast>\t<maskKind>
              Empty field = inherit the global value. maskKind is empty,
-             "squircle", "squircle-flat", or "pointed". -->
+             "squircle", "squircle-flat", "pointed", "alpha" (shape by the
+             window's alpha channel even where the global AlphaMask scope
+             would not pick it) or "region" (keep the client's raw region,
+             opting out of AlphaMask). -->
         <entry name="WindowOverrides" type="String">
             <default></default>
         </entry>

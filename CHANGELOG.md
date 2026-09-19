@@ -2,6 +2,30 @@
 Things not in any tagged release yet:
 
 ### Features
+- **Alpha-masked blur** (General → Corners → "Shape blur by window alpha",
+  off by default). Undecorated windows that request blur themselves (CSD
+  apps, layer-shell panels, docks) have their blur shaped by their own alpha
+  channel at the final composite instead of the integer `wl_region` the
+  protocol allows, so rounded, squircle or arbitrary corners inherit the
+  client's own antialiasing with no per-class SDF. The client's region is
+  widened to its bounding rect for these windows; the alpha pass carves the
+  silhouette. "Full-blur alpha" sets the window alpha at which coverage
+  saturates (default 0.5). Explicit squircle/pointed overrides and the menu
+  mask keep priority. New override shapes: `alpha` opts a window in regardless
+  of scope (e.g. force-blurred CSD apps), `region` opts it out. Falls back to
+  the geometric path when the surface texture is unusable (no texture yet,
+  YUV, rotated buffer, opaque format). Samples the root surface and up to
+  three subsurfaces (max alpha), so GTK4 graphics offload, which toggles a
+  widget's content between the root and a subsurface frame by frame, no
+  longer flickers the blur. The surface texture is brought up to date before
+  sampling (KWin otherwise attaches a resized buffer only during its own item
+  render, after effects), so window resize animations keep the alpha mask
+  instead of dropping to full geometric blur for a frame. Composite path
+  changes per window are logged at info level as `[alpha-diag]`.
+  Requires Plasma 6.7.
+- The override editor's "Squircle corner shape" checkbox is now a "Blur
+  shape" combo covering all shape kinds; `pointed` and `squircle-flat` rules
+  no longer get dropped when the KCM rewrites the rule list.
 - Add a per-window squircle shape override with an antialiased superellipse
   mask at the final cached-blur composite stage. Undecorated squircle windows
   use full coarse bounds so their configured radius remains authoritative

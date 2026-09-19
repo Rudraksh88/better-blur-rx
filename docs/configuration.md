@@ -46,6 +46,31 @@ This is mainly useful to work around the infamous "korners" bug
 > This setting is ignored for windows that provide their own blur region (e.g. Plasma surfaces).
 > We expect these to be set correctly by the window (and usually they are).
 
+### Shape blur by window alpha
+Off by default. Requires Plasma 6.7.
+
+Undecorated windows that request blur themselves (CSD applications,
+layer-shell panels, docks) have their blur shaped by their own alpha channel
+at the final composite instead of the integer `wl_region` the Wayland protocol
+allows. Rounded, squircle or arbitrary corners follow the antialiasing the
+client drew, with no per-class shape rule. The requested region is widened to
+its bounding rectangle for these windows and the alpha pass carves the exact
+silhouette, so region holes are not preserved; use a `region` override to keep
+a client's raw region.
+
+Explicit `squircle` / `pointed` overrides and the menu mask keep priority.
+Force-blurred windows are not in scope by default; give them an `alpha`
+override to opt in. The root surface and up to three subsurfaces are sampled
+(coverage is their maximum alpha), which covers GTK4 graphics offload and video
+players. If no surface texture is usable in a frame (no texture yet, YUV
+content, rotated buffer, opaque pixel format) the window falls back to the
+geometric path. Each switch between the alpha and geometric path is logged
+once per window at info level, prefixed `[alpha-diag]`, in the KWin journal.
+
+### Full-blur alpha
+Window alpha at which blur coverage reaches 100% (default 0.5). Lower it if a
+very translucent window loses blur; raise it to harden edges.
+
 # Force blur
 
 ### Classes of windows to force blur:
