@@ -243,9 +243,159 @@ void BBDX::WindowManager::reconfigure() {
     }
     m_windowOverrides = std::move(windowOverrides);
 
+    // Published shapes sit on top of the (possibly changed) config table.
+    for (auto it = m_surfaceShapes.constBegin(); it != m_surfaceShapes.constEnd(); ++it) {
+        rebuildSurfaceOverride(it.key());
+    }
+
     for (const auto &[_, window] : m_windows) {
         window->reconfigure();
     }
+}
+
+const BBDX::WindowOverride *BBDX::WindowManager::configOverrideForClass(const QString &windowClass) const {
+    for (const auto &o : m_windowOverrides) {
+        if (o.isBlank) {
+            if (windowClass.isEmpty()) {
+                return &o;
+            }
+        } else if (o.isRegex) {
+            if (o.regex.match(windowClass).hasMatch()) {
+                return &o;
+            }
+        } else if (o.className == windowClass) {
+            return &o;
+        }
+    }
+    return nullptr;
+}
+
+void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
+    const auto shapeIt = m_surfaceShapes.constFind(appId);
+    if (shapeIt == m_surfaceShapes.constEnd()) {
+        m_surfaceOverrides.remove(appId);
+        return;
+    }
+    const SurfaceShape &shape = *shapeIt;
+
+    WindowOverride merged{};
+    if (const WindowOverride *base = configOverrideForClass(appId)) {
+        merged = *base;
+    }
+    // The merged entry always matches this exact class, whatever the base
+    // matcher was (a regex may have contributed the inherited values).
+    merged.className = appId;
+    merged.isRegex = false;
+    merged.isBlank = false;
+    merged.regex = QRegularExpression();
+
+    if (!shape.kind.isEmpty() && shape.kind != QStringLiteral("inherit")) {
+        merged.squircle = false;
+        merged.flatBottom = false;
+        merged.pointed = false;
+        merged.alphaMask = false;
+        merged.rawRegion = false;
+        if (shape.kind == QStringLiteral("squircle")) {
+            merged.squircle = true;
+        } else if (shape.kind == QStringLiteral("squircle-flat")) {
+            merged.squircle = true;
+            merged.flatBottom = true;
+        } else if (shape.kind == QStringLiteral("pointed")) {
+            merged.pointed = true;
+        } else if (shape.kind == QStringLiteral("alpha")) {
+            merged.alphaMask = true;
+        } else if (shape.kind == QStringLiteral("region")) {
+            merged.rawRegion = true;
+        }
+        // "rounded": all flags off, radius (below or inherited) applies.
+    }
+    if (shape.radius) {
+        merged.cornerRadius = shape.radius;
+    }
+    m_surfaceOverrides.insert(appId, std::move(merged));
+}
+
+void BBDX::WindowManager::applySurfaceShape(const QString &appId) {
+    for (const auto &[effectWindow, window] : m_windows) {
+        if (effectWindow->window()->resourceClass() != appId) {
+            continue;
+        }
+        // reconfigure() picks up the radius and invalidates the cache; the
+        // region has to be rebuilt too because the kind decides which path
+        // getFinalBlurRegion() takes.
+        window->reconfigure();
+        triggerBlurRegionUpdate(window->effectwindow());
+        window->effectwindow()->addRepaintFull();
+    }
+}
+
+const BBDX::SurfaceShape *BBDX::WindowManager::surfaceShapeFor(const KWin::EffectWindow *w) const {
+    if (m_surfaceShapes.isEmpty()) {
+        return nullptr;
+    }
+    const auto it = m_surfaceShapes.constFind(w->window()->resourceClass());
+    return it == m_surfaceShapes.constEnd() ? nullptr : &*it;
+}
+
+bool BBDX::WindowManager::setSurfaceShape(const QString &appId,
+                                          const QString &kind,
+                                          std::optional<qreal> radius,
+                                          std::optional<qreal> exponent,
+                                          std::optional<qreal> arrowCenterX,
+                                          std::optional<qreal> inset) {
+    if (appId.isEmpty()) {
+        return false;
+    }
+    SurfaceShape shape{kind, radius, exponent, arrowCenterX, inset};
+    m_surfaceShapes.insert(appId, std::move(shape));
+    rebuildSurfaceOverride(appId);
+    applySurfaceShape(appId);
+    qCInfo(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Surface shape set:" << appId << kind
+                           << "radius" << (radius ? QString::number(*radius) : QStringLiteral("inherit"))
+                           << "exponent" << (exponent ? QString::number(*exponent) : QStringLiteral("inherit"))
+                           << "arrowX" << (arrowCenterX ? QString::number(*arrowCenterX) : QStringLiteral("inherit"))
+                           << "inset" << (inset ? QString::number(*inset) : QStringLiteral("inherit"));
+    return true;
+}
+
+bool BBDX::WindowManager::clearSurfaceShape(const QString &appId) {
+    if (m_surfaceShapes.remove(appId) == 0) {
+        return false;
+    }
+    m_surfaceOverrides.remove(appId);
+    applySurfaceShape(appId);
+    qCInfo(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Surface shape cleared:" << appId;
+    return true;
+}
+
+QStringList BBDX::WindowManager::surfaceShapes() const {
+    QStringList lines;
+    const auto fmt = [](const std::optional<qreal> &v) {
+        return v ? QString::number(*v) : QStringLiteral("inherit");
+    };
+    for (auto it = m_surfaceShapes.constBegin(); it != m_surfaceShapes.constEnd(); ++it) {
+        const SurfaceShape &s = *it;
+        lines.append(QStringLiteral("%1 %2 %3 %4 %5 %6")
+                         .arg(it.key(),
+                              s.kind.isEmpty() ? QStringLiteral("inherit") : s.kind,
+                              fmt(s.radius), fmt(s.exponent), fmt(s.arrowCenterX), fmt(s.inset)));
+    }
+    lines.sort();
+    return lines;
+}
+
+qreal BBDX::WindowManager::squircleExponentFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->exponent) {
+        return *shape->exponent;
+    }
+    return m_squircleExponent;
+}
+
+qreal BBDX::WindowManager::shapeInsetFor(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->inset) {
+        return *shape->inset;
+    }
+    return usesDockPlateMask(w) ? m_plateMaskInset : 0.0;
 }
 
 bool BBDX::WindowManager::previewDockSurfaces(qreal plateBlurRadius,
@@ -308,6 +458,12 @@ bool BBDX::WindowManager::overrideMatchesWindow(const WindowOverride &o, const K
 }
 
 const BBDX::WindowOverride *BBDX::WindowManager::overrideFor(const KWin::EffectWindow *w) const {
+    if (!m_surfaceOverrides.isEmpty()) {
+        const auto it = m_surfaceOverrides.constFind(w->window()->resourceClass());
+        if (it != m_surfaceOverrides.constEnd()) {
+            return &*it;
+        }
+    }
     for (const auto &o : m_windowOverrides) {
         if (overrideMatchesWindow(o, w)) {
             return &o;
@@ -379,6 +535,9 @@ bool BBDX::WindowManager::usesPointedMenuMask(const KWin::EffectWindow *w) const
 }
 
 qreal BBDX::WindowManager::pointedMaskInset(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->inset) {
+        return *shape->inset;
+    }
     return usesPointedMenuMask(w) ? 1.0 : m_pointedTooltipInset;
 }
 
@@ -394,6 +553,9 @@ qreal BBDX::WindowManager::pointedMaskBodyRadius(const KWin::EffectWindow *w) co
 }
 
 qreal BBDX::WindowManager::pointedTooltipSquircleExponent(const KWin::EffectWindow *w) const {
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->exponent) {
+        return *shape->exponent;
+    }
     // Thumbnail popups share the pointed mask but intentionally keep their
     // rounded-rectangle body. Only the dock's name tooltip opts into a
     // squircle, and 2 is the rounded-body sentinel consumed by the shader.
@@ -402,6 +564,10 @@ qreal BBDX::WindowManager::pointedTooltipSquircleExponent(const KWin::EffectWind
 }
 
 std::optional<qreal> BBDX::WindowManager::pointedArrowCenterX(const KWin::EffectWindow *w) const {
+    // A published position wins over the one mined from the blur region.
+    if (const SurfaceShape *shape = surfaceShapeFor(w); shape && shape->arrowCenterX) {
+        return shape->arrowCenterX;
+    }
     const auto window = findWindow(w);
     if (!window)
         return std::nullopt;

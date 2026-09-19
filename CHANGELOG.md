@@ -23,6 +23,15 @@ Things not in any tagged release yet:
   instead of dropping to full geometric blur for a frame. Composite path
   changes per window are logged at info level as `[alpha-diag]`.
   Requires Plasma 6.7.
+- **D-Bus per-surface shapes.** `setSurfaceShape(appId, kind, radius,
+  exponent, arrowCenterX, inset)`, `clearSurfaceShape(appId)` and
+  `surfaceShapes()` on `/org/kde/KWin/Effects/BetterBlurDX` let a client
+  publish, at runtime and per resource class, what the override table and
+  the region-mining contract used to carry: shape kind, radius, squircle
+  exponent, pointed-arrow position and mask inset. Published values sit on
+  top of the matching config override; unset fields inherit. The
+  `surfaceShapesReset` signal tells clients to publish again after an
+  effect reload. See docs/configuration.md.
 - The override editor's "Squircle corner shape" checkbox is now a "Blur
   shape" combo covering all shape kinds; `pointed` and `squircle-flat` rules
   no longer get dropped when the KCM rewrites the rule list.

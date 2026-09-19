@@ -250,8 +250,12 @@ BlurEffect::BlurEffect()
     const bool previewRegistered = QDBusConnection::sessionBus().registerObject(
         QStringLiteral("/org/kde/KWin/Effects/BetterBlurDX"),
         this,
-        QDBusConnection::ExportScriptableSlots);
-    if (!previewRegistered) {
+        QDBusConnection::ExportScriptableSlots | QDBusConnection::ExportScriptableSignals);
+    if (previewRegistered) {
+        // Published surface shapes live in this instance only: tell clients
+        // to publish again after an effect reload.
+        Q_EMIT surfaceShapesReset();
+    } else {
         qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX
                              << "Could not register dock surface preview D-Bus object";
     }
@@ -273,6 +277,55 @@ BlurEffect::~BlurEffect()
 #elif KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 91)
     waylandServer()->backgroundEffectManager()->removeBlurCapability();
 #endif
+}
+
+bool BlurEffect::setSurfaceShape(const QString &appId,
+                                 const QString &kind,
+                                 double radius,
+                                 double exponent,
+                                 double arrowCenterX,
+                                 double inset)
+{
+    if (!m_windowManager || appId.trimmed().isEmpty()) {
+        return false;
+    }
+    static const QStringList kinds{
+        QString(), QStringLiteral("inherit"), QStringLiteral("rounded"),
+        QStringLiteral("squircle"), QStringLiteral("squircle-flat"),
+        QStringLiteral("pointed"), QStringLiteral("alpha"), QStringLiteral("region"),
+    };
+    const QString normalizedKind = kind.trimmed().toLower();
+    if (!kinds.contains(normalizedKind)) {
+        qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX << "setSurfaceShape: unknown kind" << kind;
+        return false;
+    }
+    // Negative (or NaN) means inherit; anything else is clamped to the range
+    // the shaders were designed for.
+    const auto optional = [](double value, double lo, double hi) -> std::optional<qreal> {
+        if (!std::isfinite(value) || value < 0.0) {
+            return std::nullopt;
+        }
+        return std::clamp<qreal>(value, lo, hi);
+    };
+    const std::optional<qreal> exponentValue = (std::isfinite(exponent) && exponent > 0.0)
+        ? std::optional<qreal>(std::clamp<qreal>(exponent, 2.0, 8.0))
+        : std::nullopt;
+    return m_windowManager->setSurfaceShape(appId.trimmed(),
+                                            normalizedKind == QStringLiteral("inherit") ? QString() : normalizedKind,
+                                            optional(radius, 0.0, 512.0),
+                                            exponentValue,
+                                            optional(arrowCenterX, 0.0, 65536.0),
+                                            optional(inset, 0.0, 64.0));
+}
+
+bool BlurEffect::clearSurfaceShape(const QString &appId)
+{
+    return m_windowManager && m_windowManager->clearSurfaceShape(appId.trimmed());
+}
+
+QStringList BlurEffect::surfaceShapes() const
+{
+    return m_windowManager ? m_windowManager->surfaceShapes() : QStringList();
 }
 
 bool BlurEffect::previewDockSurfaces(double plateBlurRadius,
@@ -1574,10 +1627,8 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             QVector4D(nativeBox.horizontalCenter(), nativeBox.verticalCenter(),
                       nativeBox.width() * 0.5, nativeBox.height() * 0.5),
             nativeCornerRadius.toVector(),
-            m_windowManager->squircleExponent(),
-            (m_windowManager->usesDockPlateMask(w)
-                ? m_windowManager->plateMaskInset() * viewport.scale()
-                : 0.0),
+            m_windowManager->squircleExponentFor(w),
+            m_windowManager->shapeInsetFor(w) * viewport.scale(),
             tooltipGeometry,
             tooltipStyle,
             shapeMask);

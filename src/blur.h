@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <QStringList>
+
 #include "blur_cache.hpp"
 
 #include "kwin_compat.hpp"
@@ -131,7 +133,38 @@ public:
 
     bool blocksDirectScanout() const override;
 
+Q_SIGNALS:
+    /**
+     * Emitted when the effect (re)starts: every shape published through
+     * setSurfaceShape is gone and clients should publish again.
+     */
+    Q_SCRIPTABLE void surfaceShapesReset();
+
 public Q_SLOTS:
+    /**
+     * Publish a blur shape for every window of one resource class (app_id),
+     * in memory, on top of the configured window overrides.
+     *
+     * kind: "inherit" (or ""), "rounded", "squircle", "squircle-flat",
+     *       "pointed", "alpha", "region".
+     * radius: corner radius in logical px; < 0 inherits.
+     * exponent: superellipse exponent (2..8) for squircle / pointed bodies;
+     *           <= 0 inherits.
+     * arrowCenterX: pointed mask arrow tip, frame-local logical x; < 0 or
+     *               NaN inherits (falls back to the region-mined position).
+     * inset: mask inset in logical px; < 0 inherits.
+     * Returns false for an empty appId, unknown kind or non-finite value.
+     */
+    Q_SCRIPTABLE bool setSurfaceShape(const QString &appId,
+                                      const QString &kind,
+                                      double radius,
+                                      double exponent,
+                                      double arrowCenterX,
+                                      double inset);
+    /// Remove a published shape; false if none was published for appId.
+    Q_SCRIPTABLE bool clearSurfaceShape(const QString &appId);
+    /// One "appId kind radius exponent arrowCenterX inset" line per shape.
+    Q_SCRIPTABLE QStringList surfaceShapes() const;
     /// Update dock SDF geometry in memory for frame-grade Settings previews.
     Q_SCRIPTABLE bool previewDockSurfaces(double plateBlurRadius,
                                           double plateMaskInset,

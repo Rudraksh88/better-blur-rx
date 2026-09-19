@@ -97,3 +97,46 @@ By default these are filtered from the list of blurred windows.
 > [!NOTE]
 > This only *allows* these to be blurred.
 > You still need to add them to the force blurred window classes or enable `Blur all except matching`.
+
+# D-Bus
+
+The effect exposes `org.kde.KWin.Effects.BetterBlurDX` at
+`/org/kde/KWin/Effects/BetterBlurDX` on the session bus (service
+`org.kde.KWin`).
+
+### Per-surface shapes
+
+A client can publish the blur shape for all windows of one `app_id`
+(resource class) at runtime, on top of the configured window overrides.
+Values live in memory only; after an effect reload the
+`surfaceShapesReset` signal fires and clients must publish again.
+
+```
+setSurfaceShape(appId, kind, radius, exponent, arrowCenterX, inset) -> bool
+clearSurfaceShape(appId) -> bool
+surfaceShapes() -> [string]
+```
+
+- `kind`: `inherit` (or empty), `rounded`, `squircle`, `squircle-flat`,
+  `pointed`, `alpha`, `region`. Same meaning as the override table's shape
+  field; `rounded` forces a plain rounded rectangle.
+- `radius`: corner radius in logical px. `< 0` inherits.
+- `exponent`: superellipse exponent (2–8) for squircle bodies and pointed
+  bodies. `<= 0` inherits.
+- `arrowCenterX`: pointed mask arrow tip, frame-local logical x. `< 0`
+  inherits, which falls back to the position mined from the client's blur
+  region.
+- `inset`: mask inset in logical px (squircle plate, pointed body). `< 0`
+  inherits.
+
+Anything not published keeps coming from the config override that matches
+the class (exact, regex or `$blank`) or from the globals.
+
+```sh
+# squircle plate, radius 32, exponent 3.4, default inset
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-plate squircle 32 3.4 -1 -1
+# move the tooltip arrow to x=57 without touching anything else
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-tooltip inherit -1 -1 57 -1
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX surfaceShapes
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX clearSurfaceShape surfboard-plate
+```

@@ -17,11 +17,11 @@ Working notes for the fork. Newest first.
   pixels inward along the edge). Keeps full blur under translucent fills and
   full antialiasing at edges regardless of fill opacity. Cost: a few extra
   taps, only meaningful at edges.
-- **D-Bus per-surface shape params** (agreed next): `setSurfaceShape(appId,
-  kind, radius, exponent, arrowCenterX, inset)` / `clearSurfaceShape(appId)`
-  on `/org/kde/KWin/Effects/BetterBlurDX`, keyed by resource class,
-  overriding the config-table values in memory; the region-mining contract
-  in `Window::getFinalBlurRegion()` stays as fallback.
+- ~~D-Bus per-surface shape params~~ (done 2026-09-19): `setSurfaceShape` /
+  `clearSurfaceShape` / `surfaceShapes` + `surfaceShapesReset` signal. The
+  region-mining contract in `Window::getFinalBlurRegion()` stays as the
+  fallback for `arrowCenterX`. Surfboard side still to be wired: publish on
+  start and on `surfaceShapesReset`.
 - ~~Plate flicker under alpha/inherit shape~~ (fixed 2026-09-19): KWin
   attaches a resized buffer to the surface texture lazily during its own item
   render, after effects draw, so every resize frame sampled a stale-size

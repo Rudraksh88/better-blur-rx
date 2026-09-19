@@ -12,9 +12,11 @@
 #  include <core/region.h>
 #endif
 
+#include <QHash>
 #include <QList>
 #include <QMatrix4x4>
 #include <QObject>
+#include <QStringList>
 #include <QRegularExpression>
 #include <QString>
 
@@ -59,6 +61,25 @@ struct WindowOverride {
     /// The docked plate's squircle keeps its top radii but meets the screen
     /// edge with square lower corners.
     bool flatBottom{false};
+};
+
+/**
+ * A shape a client published at runtime over D-Bus for one resource class.
+ *
+ * Every field is optional: an unset field inherits from the matching config
+ * override (or the global value). Not persisted; cleared when the effect is
+ * reloaded, which the effect announces with the surfaceShapesReset signal.
+ */
+struct SurfaceShape {
+    /// "", rounded, squircle, squircle-flat, pointed, alpha or region.
+    QString kind{};
+    std::optional<qreal> radius{};
+    /// Superellipse exponent for squircle bodies (2 = rounded rectangle).
+    std::optional<qreal> exponent{};
+    /// Pointed mask arrow tip centre, frame-local logical x.
+    std::optional<qreal> arrowCenterX{};
+    /// Mask inset in logical pixels (squircle plate / pointed body).
+    std::optional<qreal> inset{};
 };
 
 class WindowManager : public QObject {
@@ -120,6 +141,20 @@ private:
     // window-specific overrides, first match wins
     QList<WindowOverride> m_windowOverrides{};
 
+    // Runtime per-surface shapes (D-Bus), keyed by exact resource class, and
+    // the override each one resolves to once merged over the config table.
+    QHash<QString, SurfaceShape> m_surfaceShapes{};
+    QHash<QString, WindowOverride> m_surfaceOverrides{};
+
+    /** First config override whose matcher accepts this resource class. */
+    const WindowOverride *configOverrideForClass(const QString &windowClass) const;
+    /** Recompute m_surfaceOverrides[appId] from config + m_surfaceShapes. */
+    void rebuildSurfaceOverride(const QString &appId);
+    /** Reconfigure, re-region and repaint every window of that class. */
+    void applySurfaceShape(const QString &appId);
+    /** The published shape for this window's class, nullptr if none. */
+    const SurfaceShape *surfaceShapeFor(const KWin::EffectWindow *w) const;
+
     // match helpers
     bool matchesWindowClassFixed(const KWin::EffectWindow *w) const;
     bool matchesWindowClassRegex(const KWin::EffectWindow *w) const;
@@ -159,6 +194,27 @@ public:
                              qreal tooltipTipRadius,
                              qreal tooltipInset,
                              qreal tooltipFeather);
+
+    /**
+     * Runtime per-surface shapes (D-Bus).
+     *
+     * Values already validated and clamped by the caller; std::nullopt means
+     * inherit. kind must be one of SurfaceShape's kinds or empty.
+     */
+    bool setSurfaceShape(const QString &appId,
+                         const QString &kind,
+                         std::optional<qreal> radius,
+                         std::optional<qreal> exponent,
+                         std::optional<qreal> arrowCenterX,
+                         std::optional<qreal> inset);
+    bool clearSurfaceShape(const QString &appId);
+    /** One "appId kind radius exponent arrowCenterX inset" line per shape. */
+    QStringList surfaceShapes() const;
+
+    /** Squircle exponent for this window: published shape, else global. */
+    qreal squircleExponentFor(const KWin::EffectWindow *w) const;
+    /** Mask inset for a squircle body: published shape, else the plate inset. */
+    qreal shapeInsetFor(const KWin::EffectWindow *w) const;
 
     /**
      * Refresh maximized state of a window / of all windows
