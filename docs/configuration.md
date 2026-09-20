@@ -162,9 +162,11 @@ removes both):
 
 Anything not published keeps coming from the config override that matches
 the class (exact, regex or `$blank`) or from the globals. Windows with a
-published shape or arrow also couple their blur opacity to
-`wp_alpha_modifier`, like the dock tooltip, so a client-side fade takes the
-blur with it. The last committed factor is kept for the window KWin retains
+published shape or arrow couple their blur opacity to `wp_alpha_modifier`,
+like the dock tooltip, so a client-side fade takes the blur with it. So does
+any other window the moment it commits a multiplier below 1: a client that
+fades through the protocol gets its blur faded in the same frame with no
+shape published, and a client that never uses it is unaffected. The last committed factor is kept for the window KWin retains
 during its close animation (the Wayland surface is already gone by then), so
 a surface that faded to zero stays at zero blur instead of snapping back to
 full opacity for those frames.

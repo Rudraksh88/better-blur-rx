@@ -22,6 +22,9 @@ Things not in any tagged release yet:
   render, after effects), so window resize animations keep the alpha mask
   instead of dropping to full geometric blur for a frame. Composite path
   changes per window are logged at info level as `[alpha-diag]`.
+  Any window that commits a `wp_alpha_modifier` multiplier below 1 now has
+  its blur opacity follow that multiplier, not only published shapes and the
+  dock tooltip; windows that never use the protocol are untouched.
   Notification and critical-notification windows stay on the geometric path
   by default (their in-surface drop shadow would be read as fill and blur
   the region's bounding box); an `alpha` override opts them in.

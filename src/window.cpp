@@ -724,10 +724,14 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
         return data.opacity() * m_lastSurfaceAlpha;
     }
     // Surfaces with a published shape (and the dock tooltip by class) fade
-    // their blur with wp_alpha_modifier.
+    // their blur with wp_alpha_modifier. So does any surface that is
+    // actually using the protocol: a multiplier below 1 only ever comes from
+    // a client that committed one, and a window that never does keeps the
+    // paths below untouched (the multiplier reads 1 for it).
     if (surface
         && (effectwindow()->window()->resourceClass() == QStringLiteral("surfboard-tooltip")
-            || m_windowManager->hasSurfaceShape(effectwindow()))) {
+            || m_windowManager->hasSurfaceShape(effectwindow())
+            || surface->alphaMultiplier() < 1.0)) {
         // wp_alpha_modifier is committed with the tooltip buffer. GTK
         // pixel alpha (or an independent DBus animation) cannot keep the
         // blur and content in the same frame. KWin applies this multiplier
