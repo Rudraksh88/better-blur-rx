@@ -617,6 +617,15 @@ bool BBDX::WindowManager::usesAlphaMask(const KWin::EffectWindow *w) const {
     if (o && o->alphaMask) {
         return true;
     }
+    // Notification toasts render their drop shadow into their own surface,
+    // around the shape they ask blur for. The alpha pass would treat that
+    // shadow as fill and blur the region's bounding box up to the shadow's
+    // contour (sharp corners on a rounded toast), while the region they
+    // request is already exact. Keep them on the geometric path unless a
+    // class override opts them in.
+    if (w->isNotification() || w->isCriticalNotification()) {
+        return false;
+    }
     // Default scope: undecorated surfaces that asked for blur themselves.
     // Force-blurred windows keep the geometric path unless they opt in, so
     // an intentionally translucent app never loses blur to its own alpha.

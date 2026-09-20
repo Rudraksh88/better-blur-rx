@@ -22,6 +22,9 @@ Things not in any tagged release yet:
   render, after effects), so window resize animations keep the alpha mask
   instead of dropping to full geometric blur for a frame. Composite path
   changes per window are logged at info level as `[alpha-diag]`.
+  Notification and critical-notification windows stay on the geometric path
+  by default (their in-surface drop shadow would be read as fill and blur
+  the region's bounding box); an `alpha` override opts them in.
   Requires Plasma 6.7.
 - **D-Bus per-surface shapes.** `setSurfaceShape(appId, kind, radius,
   exponent, arrowCenterX, inset)`, `clearSurfaceShape(appId)` and

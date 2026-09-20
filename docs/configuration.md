@@ -60,7 +60,11 @@ a client's raw region.
 
 Explicit `squircle` / `pointed` overrides and the menu mask keep priority.
 Force-blurred windows are not in scope by default; give them an `alpha`
-override to opt in. The root surface and up to three subsurfaces are sampled
+override to opt in. Notification and critical-notification windows (Plasma
+toasts) are also out of scope by default: they draw their drop shadow into
+their own surface around the shape they request blur for, which the alpha
+pass would blur up to the shadow's contour; their requested region is used
+as is. An `alpha` override opts them in. The root surface and up to three subsurfaces are sampled
 (coverage is their maximum alpha), which covers GTK4 graphics offload and video
 players. If no surface texture is usable in a frame (no texture yet, YUV
 content, rotated buffer, opaque pixel format) the window falls back to the

@@ -58,7 +58,9 @@ works: rounded, squircle, arrow, animated morph, holes. `AlphaMaskThreshold`
 blur reaches 100 %.
 
 Eligible by default: undecorated windows that requested blur themselves and
-have no explicit `squircle` / `pointed` shape and are not menus. Explicit
+have no explicit `squircle` / `pointed` shape and are not menus or
+notification toasts (KWin notification / critical-notification role; their
+in-surface shadow would be read as fill). Explicit
 opt-in / opt-out per class via the shape `alpha` / `region`.
 
 ### Consequences surfboard must know
