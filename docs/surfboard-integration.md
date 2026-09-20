@@ -210,13 +210,16 @@ Only the plate blur-radius preview stays purely global
 
 ### Blur fades with `wp_alpha_modifier`
 
-Any window with a published shape or arrow couples its blur opacity to the
-surface's `wp_alpha_modifier` factor, exactly as `surfboard-tooltip` did by
-class. Fade a folder grid or fan with the alpha modifier and the blur fades
-in the same frame.
+Any window that commits a `wp_alpha_modifier` factor below 1 couples its
+blur opacity to that factor, exactly as `surfboard-tooltip` did by class.
+No publication is needed for this: a published shape or arrow couples too,
+but a plain `region` override or no override at all works the same the
+moment the client sends a multiplier. Fade a folder grid or fan with the
+alpha modifier and the blur fades in the same frame. Windows that never use
+the protocol are unaffected.
 
 KWin keeps a closing window alive for its close animation after the Wayland
-surface is destroyed. For these classes the effect keeps the last committed
+surface is destroyed. For these windows the effect keeps the last committed
 alpha factor for that retained window (`remnant-alpha` capability), so a
 surface that faded to zero does not regain full blur for its remnant frames.
 Surfboard's client-side barrier (clear the blur region, `wl_display_sync`,
