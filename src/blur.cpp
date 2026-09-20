@@ -384,6 +384,11 @@ QStringList BlurEffect::capabilities() const
         caps.append(QStringLiteral("alpha-mask-enabled"));
         caps.append(QStringLiteral("alpha-mask-threshold=%1")
                         .arg(m_windowManager->alphaMaskThreshold(), 0, 'g', 4));
+        caps.append(QStringLiteral("alpha-mask-mode=%1")
+                        .arg(m_windowManager->alphaMaskMode() == 1
+                                 ? QStringLiteral("silhouette") : QStringLiteral("threshold")));
+        caps.append(QStringLiteral("alpha-mask-floor=%1")
+                        .arg(m_windowManager->alphaMaskFloor(), 0, 'g', 4));
     }
 #endif
     return caps;
@@ -506,6 +511,13 @@ void BlurEffect::reconfigure(ReconfigureFlags flags)
 
 void BlurEffect::updateBlurRegion(EffectWindow *w)
 {
+    // WindowManager's constructor adds every existing window, and a
+    // force-blurred one re-enters here (Window ctor -> updateForceBlurRegion
+    // -> triggerBlurRegionUpdate) before m_windowManager has been assigned.
+    // The constructor re-adds all windows afterwards, so skipping is safe.
+    if (!m_windowManager) {
+        return;
+    }
     const RegionF previousBlurRegion = blurRegion(w);
 
     std::optional<RegionF> content;
@@ -1539,6 +1551,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                               sourceBox.y() / bufferSize.height(),
                               sourceBox.width() / bufferSize.width(),
                               sourceBox.height() / bufferSize.height()),
+                    QVector2D(1.0f / bufferSize.width(), 1.0f / bufferSize.height()),
                 },
                 visible.width() * visible.height(),
                 isRoot,
@@ -1572,7 +1585,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             vertexCount,
             modulation,
             surfaces,
-            static_cast<float>(m_windowManager->alphaMaskThreshold()));
+            BBDX::AlphaMaskParams{
+                m_windowManager->alphaMaskMode(),
+                static_cast<float>(m_windowManager->alphaMaskThreshold()),
+                static_cast<float>(m_windowManager->alphaMaskFloor()),
+            });
         return true;
     };
     const auto drawFinalCached = [&]() {

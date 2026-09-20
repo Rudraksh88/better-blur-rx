@@ -195,6 +195,8 @@ public Q_SLOTS:
      *   alpha-mask            kind=alpha is compiled in (Plasma 6.7 Wayland)
      *   alpha-mask-enabled    the global AlphaMask toggle is on
      *   alpha-mask-threshold=<v>  current AlphaMaskThreshold
+     *   alpha-mask-mode=threshold|silhouette  how alpha maps to coverage
+     *   alpha-mask-floor=<v>  silhouette mode: alpha treated as transparent
      */
     Q_SCRIPTABLE QStringList capabilities() const;
     /// Update dock SDF geometry in memory for frame-grade Settings previews.

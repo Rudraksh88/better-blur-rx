@@ -36,6 +36,14 @@ Things not in any tagged release yet:
   and lets the arrow sit on any edge (side docks); windows with a published
   shape couple their blur opacity to `wp_alpha_modifier` like the dock
   tooltip. See docs/configuration.md and docs/surfboard-integration.md.
+- **Alpha mask "silhouette" mode** (new default, KCM General → Corners →
+  "Alpha mask mode"). Coverage no longer follows the fill alpha: any fill
+  above "Ignore alpha below" (default 0.02) gets full blur, and edges against
+  transparency use the window's own antialiasing (alpha over the one-texel
+  neighbourhood maximum). A 0.05 fill now blurs exactly like an opaque one.
+  The previous behaviour (coverage = alpha / "Full-blur alpha") remains as
+  "Threshold" mode. `capabilities()` gains `alpha-mask-mode=` and
+  `alpha-mask-floor=`.
 - `capabilities()` on the same D-Bus object reports what the running build
   and configuration support (`api=1`, `surface-shape`, `surface-arrow`,
   `remnant-alpha`, `alpha-mask`, `alpha-mask-enabled`,
@@ -50,6 +58,10 @@ Things not in any tagged release yet:
   instead of being clipped by an integer client blur region.
 
 ### Bug Fixes
+- Loading the effect while a force-blurred window was open crashed KWin:
+  the window manager's constructor adds existing windows, and a
+  force-blurred one called back into `BlurEffect::updateBlurRegion()` before
+  the manager pointer was assigned (null dereference in `findWindow`).
 - Windows with a published D-Bus shape (and `surfboard-tooltip`) keep the
   last `wp_alpha_modifier` factor their surface committed while KWin retains
   them for the close animation. Previously the opacity getter fell through

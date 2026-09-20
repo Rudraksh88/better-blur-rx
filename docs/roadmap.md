@@ -11,12 +11,10 @@ Working notes for the fork. Newest first.
   - `region` override per class (e.g. `org.kde.plasmashell`) to keep the old
     "blur wherever the region says" behaviour for a specific surface while
     everything else stays alpha-shaped.
-- **v2 coverage estimator, opacity-independent AA**: normalise by the local
-  fill alpha instead of a fixed threshold, e.g. `coverage = a / maxLocal`
-  where `maxLocal` is the maximum alpha in a small kernel (or sampled a few
-  pixels inward along the edge). Keeps full blur under translucent fills and
-  full antialiasing at edges regardless of fill opacity. Cost: a few extra
-  taps, only meaningful at edges.
+- ~~v2 coverage estimator, opacity-independent AA~~ (done 2026-09-20 as
+  "silhouette" alpha mask mode, now the default): interior of any fill above
+  a floor → full blur; edges against transparency → `a / max(3×3)`; 9 taps
+  per surface.
 - ~~D-Bus per-surface shape params~~ (done 2026-09-19): `setSurfaceShape` /
   `clearSurfaceShape` / `surfaceShapes` + `surfaceShapesReset` signal. The
   region-mining contract in `Window::getFinalBlurRegion()` stays as the

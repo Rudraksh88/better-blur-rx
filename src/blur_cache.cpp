@@ -280,6 +280,10 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_alphaTexturePass.shader->uniformLocation("alphaCount");
     blurCache->m_alphaTexturePass.alphaThresholdLocation =
         blurCache->m_alphaTexturePass.shader->uniformLocation("alphaThreshold");
+    blurCache->m_alphaTexturePass.alphaModeLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("alphaMode");
+    blurCache->m_alphaTexturePass.alphaFloorLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("alphaFloor");
     for (int i = 0; i < kMaxAlphaMaskSurfaces; ++i) {
         // Array elements are queried one by one: GL only guarantees a
         // location for "name[0]", not consecutive ones.
@@ -289,6 +293,7 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         pass.alphaTexMatrixLocation[i] = pass.shader->uniformLocation(("alphaTexMatrix[" + index + "]").constData());
         pass.surfaceBoxLocation[i] = pass.shader->uniformLocation(("surfaceBox[" + index + "]").constData());
         pass.bufferSourceLocation[i] = pass.shader->uniformLocation(("bufferSource[" + index + "]").constData());
+        pass.texelSizeLocation[i] = pass.shader->uniformLocation(("texelSize[" + index + "]").constData());
     }
 
     return blurCache;
@@ -551,7 +556,7 @@ void BBDX::BlurCache::drawAlphaMaskedCached(const KWin::RenderViewport &viewport
                                             int vertexCount,
                                             float modulation,
                                             const AlphaMaskSurfaces &surfaces,
-                                            float alphaThreshold) const {
+                                            const AlphaMaskParams &params) const {
     const auto &scaledBackgroundRect = *m_paintData.scaledBackgroundRect;
     auto *cacheEntry = renderInfo.cache.get();
     if (!cacheEntry) {
@@ -570,13 +575,16 @@ void BBDX::BlurCache::drawAlphaMaskedCached(const KWin::RenderViewport &viewport
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.mvpMatrixLocation, projectionMatrix);
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.modulationLocation, modulation);
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaCountLocation, count);
-    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaThresholdLocation, alphaThreshold);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaModeLocation, params.mode);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaThresholdLocation, params.threshold);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaFloorLocation, params.floor);
     for (int i = 0; i < count; ++i) {
         const AlphaMaskSurface &surface = surfaces[i];
         m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaTexLocation[i], 1 + i);
         m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaTexMatrixLocation[i], surface.textureMatrix);
         m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.surfaceBoxLocation[i], surface.box);
         m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.bufferSourceLocation[i], surface.bufferSource);
+        m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.texelSizeLocation[i], surface.texelSize);
     }
 
     // The window textures are KWin's; only bind them, never change their

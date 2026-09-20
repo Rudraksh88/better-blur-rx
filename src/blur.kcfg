@@ -38,6 +38,18 @@
         <entry name="AlphaMaskThreshold" type="Double">
             <default>0.5</default>
         </entry>
+        <!-- AlphaMaskMode 0 = threshold: coverage = alpha / AlphaMaskThreshold
+             (blur strength follows the fill alpha). 1 = silhouette: full blur
+             inside any fill above AlphaMaskFloor, the client's antialiasing
+             kept at edges against transparency; blur strength never depends
+             on the fill alpha. AlphaMaskFloor is the alpha below which a pixel
+             counts as transparent in silhouette mode (drops shadow tails). -->
+        <entry name="AlphaMaskMode" type="Int">
+            <default>1</default>
+        </entry>
+        <entry name="AlphaMaskFloor" type="Double">
+            <default>0.02</default>
+        </entry>
         <!-- Force Blur -->
         <entry name="WindowClasses" type="String">
             <default>class1

@@ -158,6 +158,8 @@ void BBDX::WindowManager::reconfigure() {
     m_userBorderRadius = config->cornerRadius();
     m_alphaMask = config->alphaMask();
     m_alphaMaskThreshold = std::clamp<qreal>(config->alphaMaskThreshold(), 0.01, 1.0);
+    m_alphaMaskMode = std::clamp(config->alphaMaskMode(), 0, 1);
+    m_alphaMaskFloor = std::clamp<qreal>(config->alphaMaskFloor(), 0.0, 0.5);
 
     m_brightness = config->brightness() / 100.0;
     m_saturation = config->saturation() / 100.0;

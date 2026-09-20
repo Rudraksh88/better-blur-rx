@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QVarLengthArray>
+#include <QVector2D>
 #include <QMatrix4x4>
 #include <QVector4D>
 
@@ -229,6 +230,16 @@ struct AlphaMaskSurface {
     QVector4D box{};
     /// wp_viewporter source box normalised to the buffer size: x, y, w, h.
     QVector4D bufferSource{};
+    /// One texel in texture coordinates (1 / buffer size).
+    QVector2D texelSize{};
+};
+
+/** How the alpha mask turns surface alpha into blur coverage. */
+struct AlphaMaskParams {
+    /// 0 = threshold, 1 = silhouette (see blur.kcfg AlphaMaskMode).
+    int mode{1};
+    float threshold{0.5f};
+    float floor{0.02f};
 };
 using AlphaMaskSurfaces = QVarLengthArray<AlphaMaskSurface, kMaxAlphaMaskSurfaces>;
 
@@ -260,8 +271,11 @@ private:
         int mvpMatrixLocation;
         int modulationLocation;
         int alphaCountLocation;
+        int alphaModeLocation;
         int alphaThresholdLocation;
+        int alphaFloorLocation;
         int alphaTexLocation[kMaxAlphaMaskSurfaces];
+        int texelSizeLocation[kMaxAlphaMaskSurfaces];
         int alphaTexMatrixLocation[kMaxAlphaMaskSurfaces];
         int surfaceBoxLocation[kMaxAlphaMaskSurfaces];
         int bufferSourceLocation[kMaxAlphaMaskSurfaces];
@@ -373,8 +387,8 @@ public:
      * Final-composite a cached blur through the window's own alpha channel.
      *
      * surfaces holds the root surface and any subsurfaces to consult (at most
-     * kMaxAlphaMaskSurfaces, at least one); coverage is their maximum alpha,
-     * saturating at alphaThreshold.
+     * kMaxAlphaMaskSurfaces, at least one); coverage is the maximum over them
+     * of what params derive from each surface's alpha.
      */
     void drawAlphaMaskedCached(const KWin::RenderViewport &viewport,
                                BBDX::BlurRenderData &renderInfo,
@@ -382,7 +396,7 @@ public:
                                int vertexCount,
                                float modulation,
                                const AlphaMaskSurfaces &surfaces,
-                               float alphaThreshold) const;
+                               const AlphaMaskParams &params) const;
 
     /**
      * vbo->draw() wrapper to draw into BlurCacheData of the provided cache

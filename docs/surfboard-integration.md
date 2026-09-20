@@ -68,9 +68,14 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
   plate blur at all; that is by design. The old "pure glass" look (blur
   with no tint) needs either a small non-zero fill, a lower threshold, or
   the SDF path.
-- **Fill alpha below the threshold weakens the blur** proportionally
-  (0.30 fill with threshold 0.5 → 60 % blur). Either raise the fill, lower
-  the threshold globally, or keep such surfaces on the SDF path.
+- **Fill alpha does not change blur strength** in the default *silhouette*
+  mode: anything above the floor (0.02) gets full blur, edges keep the
+  window's antialiasing. The older *threshold* mode (coverage = alpha /
+  threshold, 0.30 fill → 60 % blur) is still selectable. Check
+  `alpha-mask-mode=` in `capabilities()`.
+- **In-surface soft shadows are blurred to their floor contour** in
+  silhouette mode. Use compositor shadows (KWin shadow protocol) for fan
+  labels and grid panels, or keep shadow alpha under the floor.
 - **Only the client region's bounding box is blurred.** Keep requesting
   a blur region (any rectangle covering the shape is fine); without a
   request the window is not eligible unless it carries an `alpha`

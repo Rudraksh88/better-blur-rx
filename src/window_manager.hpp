@@ -131,6 +131,8 @@ private:
     qreal m_userBorderRadius{0.0};
     bool m_alphaMask{false};
     qreal m_alphaMaskThreshold{0.5};
+    int m_alphaMaskMode{1};
+    qreal m_alphaMaskFloor{0.02};
 
     // global color params (relative to 1.0), used to fill in
     // inherited values for window-specific overrides
@@ -295,6 +297,9 @@ public:
     bool usesAlphaMask(const KWin::EffectWindow *w) const;
     bool alphaMaskEnabled() const { return m_alphaMask; }
     qreal alphaMaskThreshold() const { return m_alphaMaskThreshold; }
+    /** 0 = threshold (strength follows alpha), 1 = silhouette (full blur inside any fill). */
+    int alphaMaskMode() const { return m_alphaMaskMode; }
+    qreal alphaMaskFloor() const { return m_alphaMaskFloor; }
 
     /** Whether the client asked for this surface's blur itself. */
     bool blurRequestedByClient(const KWin::EffectWindow *w) const;

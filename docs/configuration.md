@@ -67,9 +67,24 @@ content, rotated buffer, opaque pixel format) the window falls back to the
 geometric path. Each switch between the alpha and geometric path is logged
 once per window at info level, prefixed `[alpha-diag]`, in the KWin journal.
 
+### Alpha mask mode
+- **Silhouette** (default): full blur inside any fill above "Ignore alpha
+  below", however translucent the fill is; at edges against transparency the
+  window's own antialiasing coverage is used (alpha divided by the
+  neighbourhood maximum over one texel). Blur strength never depends on the
+  fill alpha, so a 0.05 fill blurs exactly like an opaque one. Trade-off: a soft
+  shadow drawn inside the window above the floor is blurred out to its floor
+  contour. Draw shadows with the compositor, or raise the floor.
+- **Threshold**: coverage = alpha / "Full-blur alpha". Strength follows the
+  fill alpha; a 0.3 fill at threshold 0.5 gets 60% blur.
+
 ### Full-blur alpha
-Window alpha at which blur coverage reaches 100% (default 0.5). Lower it if a
-very translucent window loses blur; raise it to harden edges.
+Threshold mode only. Window alpha at which blur coverage reaches 100%
+(default 0.5).
+
+### Ignore alpha below
+Silhouette mode only. Alpha under which a pixel counts as transparent
+(default 0.02).
 
 # Force blur
 
@@ -153,8 +168,9 @@ full opacity for those frames.
 `capabilities()` reports what the running build and configuration can do,
 one token per entry: `api=1`, `surface-shape`, `surface-arrow`,
 `remnant-alpha`, `alpha-mask` (kind `alpha` is compiled in: Plasma 6.7,
-Wayland), `alpha-mask-enabled` (the global toggle is on) and
-`alpha-mask-threshold=<value>`. A client that needs alpha-masked blur should
+Wayland), `alpha-mask-enabled` (the global toggle is on),
+`alpha-mask-threshold=<value>`, `alpha-mask-mode=threshold|silhouette` and
+`alpha-mask-floor=<value>`. A client that needs alpha-masked blur should
 check for `alpha-mask-enabled` rather than infer it from a successful
 `setSurfaceShape`, which only proves the method exists.
 

@@ -527,6 +527,47 @@
           <item>
            <layout class="QHBoxLayout">
             <item>
+             <widget class="QLabel" name="labelAlphaMaskMode">
+              <property name="text">
+               <string>Alpha mask mode</string>
+              </property>
+              <property name="toolTip">
+               <string>Silhouette: full blur inside any fill, however translucent; the window's own antialiasing is kept at the edges. Threshold: blur strength follows the fill alpha up to the full-blur alpha.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerAlphaMaskMode">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QComboBox" name="kcfg_AlphaMaskMode">
+              <item>
+               <property name="text">
+                <string>Threshold (strength follows alpha)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Silhouette (full blur inside any fill)</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
              <widget class="QLabel" name="labelAlphaMaskThreshold">
               <property name="text">
                <string>Full-blur alpha</string>
@@ -562,6 +603,49 @@
               </property>
               <property name="singleStep">
                <double>0.050000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel" name="labelAlphaMaskFloor">
+              <property name="text">
+               <string>Ignore alpha below</string>
+              </property>
+              <property name="toolTip">
+               <string>Silhouette mode: pixels with less alpha than this count as transparent. Raise it to keep soft shadows drawn inside a window from being blurred.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="spacerAlphaMaskFloor">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="kcfg_AlphaMaskFloor">
+              <property name="decimals">
+               <number>2</number>
+              </property>
+              <property name="minimum">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>0.500000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
               </property>
              </widget>
             </item>

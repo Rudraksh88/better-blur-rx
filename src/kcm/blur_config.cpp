@@ -342,9 +342,18 @@ void BlurEffectConfig::setupWindowOverrides()
     connect(ui.overrideContrastBox, &QSpinBox::valueChanged, this, &BlurEffectConfig::applyEditorToRule);
     connect(ui.overrideShapeCombo, &QComboBox::currentIndexChanged, this, &BlurEffectConfig::applyEditorToRule);
 
-    // The alpha threshold only matters while the alpha mask is on.
-    connect(ui.kcfg_AlphaMask, &QAbstractButton::toggled, ui.kcfg_AlphaMaskThreshold, &QWidget::setEnabled);
-    ui.kcfg_AlphaMaskThreshold->setEnabled(ui.kcfg_AlphaMask->isChecked());
+    // Alpha mask sub-settings: mode while the mask is on; threshold only in
+    // threshold mode, floor only in silhouette mode.
+    const auto syncAlphaMaskWidgets = [this]() {
+        const bool on = ui.kcfg_AlphaMask->isChecked();
+        const bool silhouette = ui.kcfg_AlphaMaskMode->currentIndex() == 1;
+        ui.kcfg_AlphaMaskMode->setEnabled(on);
+        ui.kcfg_AlphaMaskThreshold->setEnabled(on && !silhouette);
+        ui.kcfg_AlphaMaskFloor->setEnabled(on && silhouette);
+    };
+    connect(ui.kcfg_AlphaMask, &QAbstractButton::toggled, this, syncAlphaMaskWidgets);
+    connect(ui.kcfg_AlphaMaskMode, &QComboBox::currentIndexChanged, this, syncAlphaMaskWidgets);
+    syncAlphaMaskWidgets();
 
     // The hidden kcfg_WindowOverrides text edit is the source of truth managed by
     // KConfigSkeleton. Mirror its content into the rule list whenever it changes
