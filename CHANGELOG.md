@@ -50,6 +50,15 @@ Things not in any tagged release yet:
   The previous behaviour (coverage = alpha / "Full-blur alpha") remains as
   "Threshold" mode. `capabilities()` gains `alpha-mask-mode=` and
   `alpha-mask-floor=`.
+- **Per-surface alpha coverage mode.** New D-Bus shape kind
+  `alpha-threshold`: opts a class into the alpha-mask path like `alpha`, but
+  composites it with threshold coverage (`clamp(alpha / T, 0, 1)`) while
+  every other window keeps the global mode. `T` is passed in the `radius`
+  argument (clamped to 0.01–1.0, `< 0` inherits "Full-blur alpha"); the
+  other numeric arguments are ignored. Meant for surfaces whose antialiased
+  edges are wider than silhouette mode's one-texel heuristic (rotated or
+  resampled content). The mode and threshold uniforms are now resolved per
+  window at the composite. `capabilities()` gains `alpha-threshold`.
 - `capabilities()` on the same D-Bus object reports what the running build
   and configuration support (`api=1`, `surface-shape`, `surface-arrow`,
   `remnant-alpha`, `alpha-mask`, `alpha-mask-enabled`,

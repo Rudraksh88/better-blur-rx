@@ -56,6 +56,11 @@ struct WindowOverride {
     bool pointed{false};
     /// Shape the blur by the window's alpha channel (forces AlphaMask on).
     bool alphaMask{false};
+    /// With alphaMask: use threshold coverage (alpha / alphaThreshold) for
+    /// this window whatever the global AlphaMaskMode says (D-Bus kind
+    /// "alpha-threshold"). alphaThreshold unset = global AlphaMaskThreshold.
+    bool alphaThresholdMode{false};
+    std::optional<qreal> alphaThreshold{};
     /// Keep the client's raw blur region (opts out of AlphaMask).
     bool rawRegion{false};
     /// The docked plate's squircle keeps its top radii but meets the screen
@@ -71,9 +76,13 @@ struct WindowOverride {
  * reloaded, which the effect announces with the surfaceShapesReset signal.
  */
 struct SurfaceShape {
-    /// "", rounded, squircle, squircle-flat, pointed, alpha or region.
+    /// "", rounded, squircle, squircle-flat, pointed, alpha, alpha-threshold
+    /// or region.
     QString kind{};
     std::optional<qreal> radius{};
+    /// kind "alpha-threshold" only: the alpha at which coverage saturates
+    /// (carried in setSurfaceShape's radius argument). Unset = global.
+    std::optional<qreal> alphaThreshold{};
     /// Superellipse exponent for squircle bodies (2 = rounded rectangle).
     std::optional<qreal> exponent{};
     /// Pointed mask arrow tip centre, frame-local logical x.
@@ -300,6 +309,13 @@ public:
     /** 0 = threshold (strength follows alpha), 1 = silhouette (full blur inside any fill). */
     int alphaMaskMode() const { return m_alphaMaskMode; }
     qreal alphaMaskFloor() const { return m_alphaMaskFloor; }
+    /**
+     * Coverage mode / saturation alpha for this window: a published
+     * "alpha-threshold" shape forces threshold mode with its own alpha,
+     * everything else follows the globals.
+     */
+    int alphaMaskModeFor(const KWin::EffectWindow *w) const;
+    qreal alphaMaskThresholdFor(const KWin::EffectWindow *w) const;
 
     /** Whether the client asked for this surface's blur itself. */
     bool blurRequestedByClient(const KWin::EffectWindow *w) const;

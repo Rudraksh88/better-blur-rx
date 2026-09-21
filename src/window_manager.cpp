@@ -296,6 +296,8 @@ void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
         merged.flatBottom = false;
         merged.pointed = false;
         merged.alphaMask = false;
+        merged.alphaThresholdMode = false;
+        merged.alphaThreshold.reset();
         merged.rawRegion = false;
         if (shape.kind == QStringLiteral("squircle")) {
             merged.squircle = true;
@@ -306,6 +308,12 @@ void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
             merged.pointed = true;
         } else if (shape.kind == QStringLiteral("alpha")) {
             merged.alphaMask = true;
+        } else if (shape.kind == QStringLiteral("alpha-threshold")) {
+            // Same opt-in as "alpha", but coverage = alpha / T for this class
+            // regardless of the global mode; T inherits AlphaMaskThreshold.
+            merged.alphaMask = true;
+            merged.alphaThresholdMode = true;
+            merged.alphaThreshold = shape.alphaThreshold;
         } else if (shape.kind == QStringLiteral("region")) {
             merged.rawRegion = true;
         }
@@ -361,14 +369,21 @@ bool BBDX::WindowManager::setSurfaceShape(const QString &appId,
     // setSurfaceArrow is kept.
     SurfaceShape &shape = m_surfaceShapes[appId];
     shape.kind = kind;
-    shape.radius = radius;
+    // For "alpha-threshold" the radius slot carries the saturation alpha T;
+    // it must not leak into the corner radius (that keeps inheriting).
+    const bool thresholdKind = kind == QStringLiteral("alpha-threshold");
+    shape.radius = thresholdKind ? std::nullopt : radius;
+    shape.alphaThreshold = thresholdKind && radius
+        ? std::optional<qreal>(std::clamp<qreal>(*radius, 0.01, 1.0))
+        : std::nullopt;
     shape.exponent = exponent;
     shape.arrowCenterX = arrowCenterX;
     shape.inset = inset;
     rebuildSurfaceOverride(appId);
     applySurfaceShape(appId);
     qCInfo(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Surface shape set:" << appId << kind
-                           << "radius" << (radius ? QString::number(*radius) : QStringLiteral("inherit"))
+                           << (thresholdKind ? "threshold" : "radius")
+                           << (radius ? QString::number(*radius) : QStringLiteral("inherit"))
                            << "exponent" << (exponent ? QString::number(*exponent) : QStringLiteral("inherit"))
                            << "arrowX" << (arrowCenterX ? QString::number(*arrowCenterX) : QStringLiteral("inherit"))
                            << "inset" << (inset ? QString::number(*inset) : QStringLiteral("inherit"));
@@ -441,10 +456,13 @@ QStringList BBDX::WindowManager::surfaceShapes() const {
     static const char *const edgeNames[] = {"bottom", "top", "left", "right"};
     for (auto it = m_surfaceShapes.constBegin(); it != m_surfaceShapes.constEnd(); ++it) {
         const SurfaceShape &s = *it;
+        // The radius slot shows T for alpha-threshold, as it was published.
+        const std::optional<qreal> &radiusSlot =
+            s.kind == QStringLiteral("alpha-threshold") ? s.alphaThreshold : s.radius;
         lines.append(QStringLiteral("%1 %2 %3 %4 %5 %6 | %7 %8 %9 %10 %11 %12")
                          .arg(it.key(),
                               s.kind.isEmpty() ? QStringLiteral("inherit") : s.kind,
-                              fmt(s.radius), fmt(s.exponent), fmt(s.arrowCenterX), fmt(s.inset))
+                              fmt(radiusSlot), fmt(s.exponent), fmt(s.arrowCenterX), fmt(s.inset))
                          .arg(s.arrowEdge ? QString::fromLatin1(edgeNames[std::clamp(*s.arrowEdge, 0, 3)]) : QStringLiteral("inherit"),
                               fmt(s.arrowHeight), fmt(s.arrowHalf), fmt(s.arrowShoulder),
                               fmt(s.arrowTipRadius), fmt(s.arrowFeather)));
@@ -630,6 +648,19 @@ bool BBDX::WindowManager::usesAlphaMask(const KWin::EffectWindow *w) const {
     // Force-blurred windows keep the geometric path unless they opt in, so
     // an intentionally translucent app never loses blur to its own alpha.
     return !w->hasDecoration() && blurRequestedByClient(w);
+}
+
+int BBDX::WindowManager::alphaMaskModeFor(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    return o && o->alphaThresholdMode ? 0 : m_alphaMaskMode;
+}
+
+qreal BBDX::WindowManager::alphaMaskThresholdFor(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    if (o && o->alphaThresholdMode && o->alphaThreshold) {
+        return std::clamp<qreal>(*o->alphaThreshold, 0.01, 1.0);
+    }
+    return m_alphaMaskThreshold;
 }
 
 bool BBDX::WindowManager::blurRequestedByClient(const KWin::EffectWindow *w) const {

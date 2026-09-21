@@ -292,13 +292,17 @@ bool BlurEffect::setSurfaceShape(const QString &appId,
     static const QStringList kinds{
         QString(), QStringLiteral("inherit"), QStringLiteral("rounded"),
         QStringLiteral("squircle"), QStringLiteral("squircle-flat"),
-        QStringLiteral("pointed"), QStringLiteral("alpha"), QStringLiteral("region"),
+        QStringLiteral("pointed"), QStringLiteral("alpha"),
+        QStringLiteral("alpha-threshold"), QStringLiteral("region"),
     };
     const QString normalizedKind = kind.trimmed().toLower();
     if (!kinds.contains(normalizedKind)) {
         qCWarning(KWIN_BLUR) << BBDX::LOG_PREFIX << "setSurfaceShape: unknown kind" << kind;
         return false;
     }
+    // "alpha-threshold" reads the radius argument as the saturation alpha T
+    // (0.01..1); negative still inherits (the global AlphaMaskThreshold).
+    const bool thresholdKind = normalizedKind == QStringLiteral("alpha-threshold");
     // Negative (or NaN) means inherit; anything else is clamped to the range
     // the shaders were designed for.
     const auto optional = [](double value, double lo, double hi) -> std::optional<qreal> {
@@ -312,7 +316,8 @@ bool BlurEffect::setSurfaceShape(const QString &appId,
         : std::nullopt;
     return m_windowManager->setSurfaceShape(appId.trimmed(),
                                             normalizedKind == QStringLiteral("inherit") ? QString() : normalizedKind,
-                                            optional(radius, 0.0, 512.0),
+                                            thresholdKind ? optional(radius, 0.01, 1.0)
+                                                          : optional(radius, 0.0, 512.0),
                                             exponentValue,
                                             optional(arrowCenterX, 0.0, 65536.0),
                                             optional(inset, 0.0, 64.0));
@@ -380,6 +385,8 @@ QStringList BlurEffect::capabilities() const
 #endif
 #if !defined(BBDX_X11) && KWIN_VERSION >= KWIN_VERSION_CODE(6, 6, 90)
     caps.append(QStringLiteral("alpha-mask"));
+    // kind=alpha-threshold: per-surface threshold coverage mode.
+    caps.append(QStringLiteral("alpha-threshold"));
     if (m_windowManager && m_windowManager->alphaMaskEnabled()) {
         caps.append(QStringLiteral("alpha-mask-enabled"));
         caps.append(QStringLiteral("alpha-mask-threshold=%1")
@@ -1585,9 +1592,11 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             vertexCount,
             modulation,
             surfaces,
+            // Per window: a published "alpha-threshold" shape overrides the
+            // global mode and threshold; the uniforms are uploaded per draw.
             BBDX::AlphaMaskParams{
-                m_windowManager->alphaMaskMode(),
-                static_cast<float>(m_windowManager->alphaMaskThreshold()),
+                m_windowManager->alphaMaskModeFor(w),
+                static_cast<float>(m_windowManager->alphaMaskThresholdFor(w)),
                 static_cast<float>(m_windowManager->alphaMaskFloor()),
             });
         return true;

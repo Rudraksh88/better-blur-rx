@@ -146,8 +146,12 @@ public Q_SLOTS:
      * in memory, on top of the configured window overrides.
      *
      * kind: "inherit" (or ""), "rounded", "squircle", "squircle-flat",
-     *       "pointed", "alpha", "region".
-     * radius: corner radius in logical px; < 0 inherits.
+     *       "pointed", "alpha", "alpha-threshold", "region".
+     * radius: corner radius in logical px; < 0 inherits. For
+     *       "alpha-threshold" it is instead the alpha at which blur coverage
+     *       saturates (coverage = alpha / T, clamped to 0.01..1); < 0
+     *       inherits the global AlphaMaskThreshold. That kind forces
+     *       threshold coverage for the class whatever the global mode is.
      * exponent: superellipse exponent (2..8) for squircle / pointed bodies;
      *           <= 0 inherits.
      * arrowCenterX: pointed mask arrow tip, frame-local logical x; < 0 or
@@ -193,6 +197,7 @@ public Q_SLOTS:
      *   remnant-alpha         published classes keep their last
      *                         wp_alpha_modifier through the close animation
      *   alpha-mask            kind=alpha is compiled in (Plasma 6.7 Wayland)
+     *   alpha-threshold       kind=alpha-threshold (per-surface threshold mode)
      *   alpha-mask-enabled    the global AlphaMask toggle is on
      *   alpha-mask-threshold=<v>  current AlphaMaskThreshold
      *   alpha-mask-mode=threshold|silhouette  how alpha maps to coverage

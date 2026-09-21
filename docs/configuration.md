@@ -139,9 +139,15 @@ capabilities() -> [string]
 ```
 
 - `kind`: `inherit` (or empty), `rounded`, `squircle`, `squircle-flat`,
-  `pointed`, `alpha`, `region`. Same meaning as the override table's shape
-  field; `rounded` forces a plain rounded rectangle.
-- `radius`: corner radius in logical px. `< 0` inherits.
+  `pointed`, `alpha`, `alpha-threshold`, `region`. Same meaning as the
+  override table's shape field; `rounded` forces a plain rounded rectangle.
+  `alpha-threshold` (D-Bus only) is `alpha` with threshold coverage
+  (`clamp(alpha / T, 0, 1)`) for that class whatever the global "Alpha mask
+  mode" is; `T` is passed in `radius`.
+- `radius`: corner radius in logical px. `< 0` inherits. For
+  `alpha-threshold`: the alpha at which coverage saturates, clamped to
+  0.01–1.0; `< 0` inherits the global "Full-blur alpha". The other numeric
+  arguments are ignored for this kind.
 - `exponent`: superellipse exponent (2–8) for squircle bodies and pointed
   bodies. `<= 0` inherits.
 - `arrowCenterX`: pointed mask arrow tip, frame-local logical x. `< 0`
@@ -174,7 +180,8 @@ full opacity for those frames.
 `capabilities()` reports what the running build and configuration can do,
 one token per entry: `api=1`, `surface-shape`, `surface-arrow`,
 `remnant-alpha`, `alpha-mask` (kind `alpha` is compiled in: Plasma 6.7,
-Wayland), `alpha-mask-enabled` (the global toggle is on),
+Wayland), `alpha-threshold` (kind `alpha-threshold` is understood),
+`alpha-mask-enabled` (the global toggle is on),
 `alpha-mask-threshold=<value>`, `alpha-mask-mode=threshold|silhouette` and
 `alpha-mask-floor=<value>`. A client that needs alpha-masked blur should
 check for `alpha-mask-enabled` rather than infer it from a successful
@@ -188,6 +195,8 @@ qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard
 # folder grid popover: pointed body, bigger arrow than the tooltip
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape surfboard-folder-grid pointed 18 3.1 240 1
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceArrow surfboard-folder-grid bottom 12 10 5 2 -1
+# threshold coverage with T = 0.32 for one class, global mode untouched
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape quickshell alpha-threshold 0.32 0 -1 0
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX surfaceShapes
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX capabilities
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX clearSurfaceShape surfboard-plate

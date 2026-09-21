@@ -75,6 +75,16 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
   window's antialiasing. The older *threshold* mode (coverage = alpha /
   threshold, 0.30 fill → 60 % blur) is still selectable. Check
   `alpha-mask-mode=` in `capabilities()`.
+- **Silhouette's edge heuristic reads one texel around each pixel.** An
+  antialiased edge wider than that (rotated or resampled client content,
+  e.g. a tilted label rendered through a transform) is stepped instead of
+  ramped. For such a surface publish `kind=alpha-threshold` with its own
+  `T` (section 3): that class gets threshold coverage
+  `clamp(alpha / T, 0, 1)`, which reproduces the client's alpha ramp
+  exactly at any width, while every other alpha-masked window keeps the
+  global mode. Blur strength then follows fill alpha for that class only,
+  so draw the fill at or above `T`. Check for the `alpha-threshold`
+  capability token first.
 - **In-surface soft shadows are blurred to their floor contour** in
   silhouette mode. Use compositor shadows (KWin shadow protocol) for fan
   labels and grid panels, or keep shadow alpha under the floor.
@@ -103,6 +113,7 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
 | `surfboard-dialog` / `-dim` | force-blurred | `alpha` for the dialog, `region` for the dim layer | dim layer is a plain rectangle |
 | `surfboard-folder-grid` (new) | — | `pointed` + `setSurfaceArrow` (own arrow size, `edge` facing the dock) | same analytic body/arrow as the tooltip, per-surface geometry |
 | `surfboard-folder-fan` (new) | — | `alpha` with a tight blur region | arbitrary, animated silhouette; nothing to keep in sync |
+| tilted / resampled alpha content (e.g. a `quickshell` label layer) | — | `alpha-threshold` with `radius=T` | wide antialiasing ramps step under silhouette's one-texel heuristic; threshold coverage follows the ramp exactly |
 
 Whatever you pick, the shape is now a one-line D-Bus call away, so it is
 cheap to experiment.
@@ -124,10 +135,13 @@ signal      surfaceShapesReset()
 ```
 
 `capabilities()` returns tokens: `api=1`, `surface-shape`, `surface-arrow`,
-`remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask`, plus
-`alpha-mask-enabled` and `alpha-mask-threshold=<v>` when the global toggle
-is on. Use it at startup and after `surfaceShapesReset` to decide between
-`kind=alpha` and a geometric/plain-region fallback; a successful
+`remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask` and
+`alpha-threshold` (kind `alpha-threshold` is understood), plus
+`alpha-mask-enabled`, `alpha-mask-threshold=<v>`,
+`alpha-mask-mode=threshold|silhouette` and `alpha-mask-floor=<v>` when the
+global toggle is on. Use it at startup and after `surfaceShapesReset` to
+decide between `kind=alpha` / `alpha-threshold` and a geometric/plain-region
+fallback; a successful
 `setSurfaceShape` alone does not prove alpha masking is active (the
 `[alpha-diag]` journal lines do, per window).
 
@@ -136,8 +150,8 @@ is on. Use it at startup and after `surfaceShapesReset` to decide between
 | arg | meaning | inherit sentinel | clamp |
 | --- | --- | --- | --- |
 | `appId` | exact resource class (Wayland `app_id`) | — | must be non-empty |
-| `kind` | `inherit`/`""`, `rounded`, `squircle`, `squircle-flat`, `pointed`, `alpha`, `region` | `inherit` or `""` | unknown → `false` |
-| `radius` | corner radius, logical px | `< 0` | 0 … 512 |
+| `kind` | `inherit`/`""`, `rounded`, `squircle`, `squircle-flat`, `pointed`, `alpha`, `alpha-threshold`, `region` | `inherit` or `""` | unknown → `false` |
+| `radius` | corner radius, logical px; for `alpha-threshold` the saturation alpha `T` | `< 0` | 0 … 512; `alpha-threshold`: 0.01 … 1.0 |
 | `exponent` | superellipse exponent for squircle bodies and pointed bodies; 2 = rounded rectangle | `<= 0` | 2 … 8 |
 | `arrowCenterX` | pointed-mask arrow tip centre, **frame-local logical x** | `< 0` or NaN | 0 … 65536 |
 | `inset` | mask inset, logical px (squircle plate, pointed body) | `< 0` | 0 … 64 |
@@ -153,6 +167,17 @@ Semantics:
   arrow, …). Published values win over both.
 - `kind=rounded` forces a plain rounded rectangle and clears any
   squircle/pointed/alpha/region flag the config override had.
+- `kind=alpha` opts the class into the alpha-mask path and follows the
+  global `AlphaMaskMode` / `AlphaMaskThreshold` / `AlphaMaskFloor`.
+- `kind=alpha-threshold` opts the class in the same way but uses threshold
+  coverage `clamp(alpha / T, 0, 1)` for that class regardless of the global
+  mode. `T` travels in `radius` and is clamped to 0.01 … 1.0 (`< 0` or NaN
+  inherits the global `AlphaMaskThreshold`); `exponent`, `arrowCenterX` and
+  `inset` are ignored for this kind (send 0, -1, 0). The corner radius is
+  not touched (it keeps inheriting, and only matters on the geometric
+  fallback). `surfaceShapes()` prints `T` in the radius slot. Requires the
+  `alpha-threshold` capability token and, like `alpha`, the global
+  `AlphaMask` toggle (`alpha-mask-enabled`) to take effect.
 - Applies immediately to every mapped window of that class and to
   windows mapped later. Survives a config reconfigure (re-merged on top of
   the new table).
@@ -311,6 +336,8 @@ require this effect build.
 ```sh
 # what is published right now
 qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX surfaceShapes
+# threshold coverage (T = 0.32) for one class while the global mode stays silhouette
+qdbus6 org.kde.KWin /org/kde/KWin/Effects/BetterBlurDX setSurfaceShape quickshell alpha-threshold 0.32 0 -1 0
 
 # effect-side log of every publish / clear, and of alpha-mask path changes
 journalctl --user -f -o cat | grep -E "Surface shape|alpha-diag"
