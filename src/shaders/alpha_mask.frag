@@ -15,6 +15,9 @@ uniform int alphaCount;
 // 1 = silhouette: full coverage inside any fill above alphaFloor; at an edge
 //     against transparency coverage = alpha / neighbourhood max, i.e. the
 //     client's own antialiasing. Strength never depends on the fill alpha.
+// 2 = threshold with an exact rim (per-surface kind "alpha-threshold"): as
+//     0 inside, but on the antialiased rim against transparency coverage =
+//     alpha / the outermost layer's alpha (see rimCoverage).
 uniform int alphaMode;
 uniform float alphaThreshold;
 uniform float alphaFloor;
@@ -22,6 +25,50 @@ uniform float modulation;
 
 varying vec2 uv;
 varying vec2 vertex;
+
+// Mode 2. On the rim a pixel's alpha is the share of it the outermost
+// painted layer covers times that layer's alpha (a dark ring, say), which
+// is usually above the fill's T: alpha / T over-covers the rim, a
+// half-covered ring pixel getting full blur. Divide by that layer's alpha
+// instead, read as the 5x5 maximum. Rim pixels: a transparent texel in the
+// 3x3 neighbourhood or, below the fill (alpha < T, with slack for a fill
+// drawn at T and rounded to 8 bits), in the 5x5 one, which reaches the
+// wider ramps of rotated or resampled content. Fill pixels sit two texels
+// or more inside a ring and keep alpha / T. Never dividing by less than T
+// keeps translucent soft shadows at alpha / T.
+float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d)
+{
+    float threshold = max(alphaThreshold, 0.0001);
+    if (a <= 0.0) {
+        return 0.0;
+    }
+    float lo = a;
+    float peak = a;
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            float n = texture2D(tex, t + vec2(float(x), float(y)) * d).a;
+            lo = min(lo, n);
+            peak = max(peak, n);
+        }
+    }
+    if (lo >= alphaFloor && a >= threshold - 2.0 / 255.0) {
+        return clamp(a / threshold, 0.0, 1.0);
+    }
+    for (int y = -2; y <= 2; ++y) {
+        for (int x = -2; x <= 2; ++x) {
+            if (abs(float(x)) < 2.0 && abs(float(y)) < 2.0) {
+                continue;
+            }
+            float n = texture2D(tex, t + vec2(float(x), float(y)) * d).a;
+            lo = min(lo, n);
+            peak = max(peak, n);
+        }
+    }
+    if (lo >= alphaFloor) {
+        return clamp(a / threshold, 0.0, 1.0);
+    }
+    return clamp(a / max(threshold, peak), 0.0, 1.0);
+}
 
 // Coverage contributed by one surface at this fragment.
 float surfaceCoverage(sampler2D tex, int i)
@@ -36,6 +83,9 @@ float surfaceCoverage(sampler2D tex, int i)
     float a = texture2D(tex, t).a;
     if (alphaMode == 0) {
         return clamp(a / max(alphaThreshold, 0.0001), 0.0, 1.0);
+    }
+    if (alphaMode == 2) {
+        return rimCoverage(tex, t, a, texelSize[i]);
     }
 
     if (a < alphaFloor) {

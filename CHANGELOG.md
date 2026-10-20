@@ -81,6 +81,14 @@ Things not in any tagged release yet:
   threshold coverage that bleed became full blur. The mask is now placed
   exactly where KWin draws the surface. Details in
   `docs/surfboard-integration.md`, "Mask registration at fractional scales".
+- Published `alpha-threshold` shapes no longer get a sub-pixel blur halo
+  outside their antialiased edge. `alpha / T` over-covered rim pixels by the
+  outer layer's alpha over `T` (about 1.5× on the stacks' labels, full blur
+  from 64 % covered); rim pixels now get `alpha / max(T, 5×5 maximum)`, the
+  share of the pixel the client covered, while fill and soft shadows keep
+  `alpha / T`. Global alpha-mask modes are unchanged. `capabilities()` gains
+  `alpha-threshold-rim`. Details in `docs/surfboard-integration.md`, "Exact
+  rim coverage for `alpha-threshold`".
 - Loading the effect while a force-blurred window was open crashed KWin:
   the window manager's constructor adds existing windows, and a
   force-blurred one called back into `BlurEffect::updateBlurRegion()` before

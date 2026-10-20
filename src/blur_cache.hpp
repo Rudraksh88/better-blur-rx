@@ -236,7 +236,8 @@ struct AlphaMaskSurface {
 
 /** How the alpha mask turns surface alpha into blur coverage. */
 struct AlphaMaskParams {
-    /// 0 = threshold, 1 = silhouette (see blur.kcfg AlphaMaskMode).
+    /// 0 = threshold, 1 = silhouette (see blur.kcfg AlphaMaskMode), 2 = threshold
+    /// with an exact rim (published kind "alpha-threshold" only).
     int mode{1};
     float threshold{0.5f};
     float floor{0.02f};

@@ -80,11 +80,12 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
   e.g. a tilted label rendered through a transform) is stepped instead of
   ramped. For such a surface publish `kind=alpha-threshold` with its own
   `T` (section 3): that class gets threshold coverage
-  `clamp(alpha / T, 0, 1)`, which reproduces the client's alpha ramp
-  exactly at any width, while every other alpha-masked window keeps the
+  `clamp(alpha / T, 0, 1)` inside its shapes and the exact geometric
+  coverage on their antialiased rim at any ramp width (see "Exact rim
+  coverage" below), while every other alpha-masked window keeps the
   global mode. Blur strength then follows fill alpha for that class only,
   so draw the fill at or above `T`. Check for the `alpha-threshold`
-  capability token first.
+  capability token first (`alpha-threshold-rim` for the rim rule).
 - **In-surface soft shadows are blurred to their floor contour** in
   silhouette mode. Use compositor shadows (KWin shadow protocol) for fan
   labels and grid panels, or keep shadow alpha under the floor.
@@ -143,6 +144,49 @@ source without the change. When checking a surface by eye, note that a
 screenshot taken under KWin's zoom effect magnifies everything; measure
 a known feature first.
 
+### Exact rim coverage for `alpha-threshold` (fixed 2026-10-21)
+
+**Symptom.** With the mask in place, a faint blur halo less than a pixel
+wide still sat just outside the dark ring of the stacks' Fan labels,
+strongest on the curved caps and where they meet the straight edges, and
+on the Grid's corners. Over a sharp, bright backdrop it read as the blur's
+corner being rounder than the label's. It was not the squircle maths: the
+Fan's blur shape is the label's own alpha.
+
+**Cause.** The threshold rule `coverage = alpha / T` is exact for fill,
+not for the antialiased rim. On the rim a pixel's alpha is the share of
+it the outermost painted layer covers times that layer's alpha. The
+stacks' outer ring is about 0.5 alpha (0.69 on the Grid) while `T` is the
+fill alpha (0.32 Fan, 0.30 Grid), so every rim pixel got ring / T ≈ 1.5×
+(Grid 2.3×) its geometric coverage, and any pixel at least 64 % covered
+got full blur. Measured on the Fan: rim pixels with alpha 0.1–0.2,
+0.2–0.3, 0.3–0.45 and 0.45–0.9 should get 0.32, 0.52, 0.71 and 0.88
+coverage and got 0.47, 0.74, 0.99 and 1.00.
+
+**Fix.** A third alpha mode, used only by published `alpha-threshold`
+shapes (the global threshold and silhouette modes are untouched):
+`rimCoverage` in `alpha_mask*.frag`. A pixel is on the rim if a
+transparent texel (below `AlphaMaskFloor`) lies in its 3×3 neighbourhood
+or, when its alpha is below the fill (`alpha < T − 2/255`, the slack for
+a fill drawn at `T` and rounded to 8 bits), in its 5×5 one, which reaches
+the wider ramps of rotated or resampled content. Rim pixels get
+`alpha / max(T, 5×5 maximum)`: the maximum is the outer layer's own
+alpha, so the result is the share of the pixel the client covered. Fill
+pixels sit two texels or more inside a ring and keep `alpha / T`, and the
+`max(T, …)` keeps translucent soft shadows, whose local maximum stays
+below `T`, at `alpha / T`. Cost: nine texture reads per non-transparent
+pixel (as silhouette mode), 25 on rim and below-fill pixels.
+`capabilities()` reports `alpha-threshold-rim`.
+
+**How it was measured.** Same rig and coverage solve as above, before
+and after on the same window content. Rim pixels now get 0.32, 0.53,
+0.71 and 0.87 against 0.32, 0.52, 0.71 and 0.88 geometric; pixels
+over-covered by more than 0.15 fell from 6.7 % of the rim to 0 on the Fan
+and the Grid. Every non-rim pixel came out identical (186 k on the Fan,
+43 k of them thumbnail shadow, and 1.33 M on the Grid). Thumbnail frame
+edges had the same over-coverage and are fixed with it. Verified live on
+the user's session.
+
 ### Recommendation per surfboard surface
 
 | app_id | Today | Suggested | Why |
@@ -177,8 +221,9 @@ signal      surfaceShapesReset()
 ```
 
 `capabilities()` returns tokens: `api=1`, `surface-shape`, `surface-arrow`,
-`remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask` and
-`alpha-threshold` (kind `alpha-threshold` is understood), plus
+`remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask`,
+`alpha-threshold` (kind `alpha-threshold` is understood) and
+`alpha-threshold-rim` (that kind's rim gets geometric coverage), plus
 `alpha-mask-enabled`, `alpha-mask-threshold=<v>`,
 `alpha-mask-mode=threshold|silhouette` and `alpha-mask-floor=<v>` when the
 global toggle is on. Use it at startup and after `surfaceShapesReset` to
@@ -213,7 +258,9 @@ Semantics:
   global `AlphaMaskMode` / `AlphaMaskThreshold` / `AlphaMaskFloor`.
 - `kind=alpha-threshold` opts the class in the same way but uses threshold
   coverage `clamp(alpha / T, 0, 1)` for that class regardless of the global
-  mode. `T` travels in `radius` and is clamped to 0.01 … 1.0 (`< 0` or NaN
+  mode, except on the antialiased rim against transparency, where coverage
+  is `alpha / max(T, local maximum)` (section 2, "Exact rim coverage";
+  `alpha-threshold-rim` token). `T` travels in `radius` and is clamped to 0.01 … 1.0 (`< 0` or NaN
   inherits the global `AlphaMaskThreshold`); `exponent`, `arrowCenterX` and
   `inset` are ignored for this kind (send 0, -1, 0). The corner radius is
   not touched (it keeps inheriting, and only matters on the geometric

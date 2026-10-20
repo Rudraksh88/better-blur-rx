@@ -387,6 +387,8 @@ QStringList BlurEffect::capabilities() const
     caps.append(QStringLiteral("alpha-mask"));
     // kind=alpha-threshold: per-surface threshold coverage mode.
     caps.append(QStringLiteral("alpha-threshold"));
+    // ...whose antialiased rim gets the client's geometric coverage.
+    caps.append(QStringLiteral("alpha-threshold-rim"));
     if (m_windowManager && m_windowManager->alphaMaskEnabled()) {
         caps.append(QStringLiteral("alpha-mask-enabled"));
         caps.append(QStringLiteral("alpha-mask-threshold=%1")

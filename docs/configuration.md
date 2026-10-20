@@ -143,7 +143,8 @@ capabilities() -> [string]
   override table's shape field; `rounded` forces a plain rounded rectangle.
   `alpha-threshold` (D-Bus only) is `alpha` with threshold coverage
   (`clamp(alpha / T, 0, 1)`) for that class whatever the global "Alpha mask
-  mode" is; `T` is passed in `radius`.
+  mode" is, and geometric coverage (`alpha / max(T, local maximum)`) on its
+  antialiased rim; `T` is passed in `radius`.
 - `radius`: corner radius in logical px. `< 0` inherits. For
   `alpha-threshold`: the alpha at which coverage saturates, clamped to
   0.01–1.0; `< 0` inherits the global "Full-blur alpha". The other numeric
@@ -181,6 +182,7 @@ full opacity for those frames.
 one token per entry: `api=1`, `surface-shape`, `surface-arrow`,
 `remnant-alpha`, `alpha-mask` (kind `alpha` is compiled in: Plasma 6.7,
 Wayland), `alpha-threshold` (kind `alpha-threshold` is understood),
+`alpha-threshold-rim` (that kind's rim gets geometric coverage),
 `alpha-mask-enabled` (the global toggle is on),
 `alpha-mask-threshold=<value>`, `alpha-mask-mode=threshold|silhouette` and
 `alpha-mask-floor=<value>`. A client that needs alpha-masked blur should

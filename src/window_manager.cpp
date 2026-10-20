@@ -652,7 +652,7 @@ bool BBDX::WindowManager::usesAlphaMask(const KWin::EffectWindow *w) const {
 
 int BBDX::WindowManager::alphaMaskModeFor(const KWin::EffectWindow *w) const {
     const WindowOverride *o = overrideFor(w);
-    return o && o->alphaThresholdMode ? 0 : m_alphaMaskMode;
+    return o && o->alphaThresholdMode ? 2 : m_alphaMaskMode;
 }
 
 qreal BBDX::WindowManager::alphaMaskThresholdFor(const KWin::EffectWindow *w) const {

@@ -311,8 +311,8 @@ public:
     qreal alphaMaskFloor() const { return m_alphaMaskFloor; }
     /**
      * Coverage mode / saturation alpha for this window: a published
-     * "alpha-threshold" shape forces threshold mode with its own alpha,
-     * everything else follows the globals.
+     * "alpha-threshold" shape forces threshold mode with an exact rim
+     * (mode 2) and its own alpha, everything else follows the globals.
      */
     int alphaMaskModeFor(const KWin::EffectWindow *w) const;
     qreal alphaMaskThresholdFor(const KWin::EffectWindow *w) const;
