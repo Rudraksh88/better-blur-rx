@@ -89,6 +89,13 @@ Things not in any tagged release yet:
   `alpha / T`. Global alpha-mask modes are unchanged. `capabilities()` gains
   `alpha-threshold-rim`. Details in `docs/surfboard-integration.md`, "Exact
   rim coverage for `alpha-threshold`".
+- `alpha-threshold` rim pixels get the blur that composites like the
+  client's own antialiasing, `(f − a) / (1 − a)` for a pixel the client
+  covers by share f at alpha a, instead of the geometric f, which put up to
+  three times too much blur behind a translucent outline's edge pixel (a
+  faint line along the dock plate's darker sides). Soft shadows and
+  interiors are unchanged. Details in `docs/surfboard-integration.md`,
+  "The last faint line".
 - Published `alpha-threshold` shapes honour `inset` as the place their
   paint starts: coverage is capped by each pixel's overlap with the surface
   rect inset by it (sides flush with the output edge excepted). The rim

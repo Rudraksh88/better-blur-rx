@@ -244,10 +244,31 @@ The same at an odd plate size and docked, where the screen-edge row
 keeps 0.99. The plate's interior, refraction included, is unchanged; Fan
 and Grid are bit-identical but for one pixel off by 1/255. An effect
 unload and reload republishes the shape through `surfaceShapesReset`.
-Live, the corners are clean and the sides much improved; a very faint
-vertical line along the sides is still visible on close inspection. The
-rig does not show it, and it was left there rather than teach the effect
-more of the plate's geometry.
+
+**The last faint line: coverage is not the composite (2026-10-21).** Live,
+a very faint line still showed along the plate's sides with every number
+above exact. It was the target, not the measurement. A rim pixel the
+client covers only partly (share f) with paint of alpha α has alpha
+a = f·α; seen through, it should show
+`f·(paint + (1 − α)·blur) + (1 − f)·sharp`. The compositor lays the
+paint over `c·blur + (1 − c)·sharp`, and the `c` that matches is
+`(f − a) / (1 − a)`, not f. With the plate's dark side ring half covering
+the pixel (f 0.50, a 0.40) that is 0.17: giving it the geometric 0.5,
+which the squircle SDF did as well, put about three times too much blur
+in the pixel, a darker line against a bright backdrop, strongest where
+the ring is darkest. `rimCoverage` now returns `compositeCoverage(f, a)`
+on the rim when the pixel's neighbourhood holds paint at least as dense
+as the fill (an outline or fill edge); a soft shadow's tail, whose
+densest paint is lighter than the fill, keeps `alpha / T`, and interior
+pixels are unchanged. The inset clip moved inside `rimCoverage` so it
+caps f before the conversion.
+
+Measured against that ideal composite, on the plate's edge pixels (blur
+minus ideal): sides +0.36 → +0.04, top / bottom +0.17 → +0.03, corners
++0.11 → −0.02, at even and odd sizes and docked; on a neon backdrop the
+side pixel moved to within 4 levels of the ideal (was 33). Fan and Grid
+outline rims went from +0.09 / +0.04 to 0.00; every interior and shadow
+pixel is unchanged. Verified live: no blur shows past the plate anywhere.
 
 ### Recommendation per surfboard surface
 

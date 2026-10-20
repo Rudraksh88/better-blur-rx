@@ -54,6 +54,32 @@ float rimTap(sampler2D tex, vec2 p, vec2 lo, vec2 hi)
     return texture2D(tex, p).a;
 }
 
+// Share of this fragment's pixel inside clipBox (box filter, exact for the
+// axis-aligned rect).
+float clipCoverage(void)
+{
+    vec2 lo = max(vertex - vec2(0.5), clipBox.xy);
+    vec2 hi = min(vertex + vec2(0.5), clipBox.zw);
+    vec2 overlap = clamp(hi - lo, 0.0, 1.0);
+    return overlap.x * overlap.y;
+}
+
+// A rim pixel the client covers only partly (share f) with paint of alpha
+// alpha_L has alpha a = f * alpha_L. Seen through, it should show the blur
+// behind its painted share and the sharp backdrop elsewhere:
+//   f * (paint + (1 - alpha_L) * blur) + (1 - f) * sharp.
+// The compositor lays the paint over coverage * blur + (1 - coverage) *
+// sharp, so the coverage that matches is (f - a) / (1 - a), not f: with a
+// dark ring (alpha_L 0.79) half covering the pixel, 0.17 rather than 0.5,
+// whose excess blur read as a faint line along the edge.
+float compositeCoverage(float f, float a)
+{
+    if (a >= 0.999) {
+        return f;
+    }
+    return clamp((f - a) / (1.0 - a), 0.0, 1.0);
+}
+
 float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d, vec2 lo, vec2 hi)
 {
     float threshold = max(alphaThreshold, 0.0001);
@@ -70,7 +96,7 @@ float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d, vec2 lo, vec2 hi)
         }
     }
     if (minA >= alphaFloor && a >= threshold - 2.0 / 255.0) {
-        return clamp(a / threshold, 0.0, 1.0);
+        return min(clamp(a / threshold, 0.0, 1.0), clipCoverage());
     }
     for (int y = -2; y <= 2; ++y) {
         for (int x = -2; x <= 2; ++x) {
@@ -83,9 +109,12 @@ float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d, vec2 lo, vec2 hi)
         }
     }
     if (minA >= alphaFloor) {
-        return clamp(a / threshold, 0.0, 1.0);
+        return min(clamp(a / threshold, 0.0, 1.0), clipCoverage());
     }
-    return clamp(a / max(threshold, peak), 0.0, 1.0);
+    float f = min(clamp(a / max(threshold, peak), 0.0, 1.0), clipCoverage());
+    // A rim whose densest paint is no denser than the fill (a soft shadow's
+    // tail) keeps alpha / T; an outline or fill edge is composited exactly.
+    return peak >= threshold - 2.0 / 255.0 ? compositeCoverage(f, a) : f;
 }
 
 // Coverage contributed by one surface at this fragment.
@@ -135,16 +164,6 @@ float surfaceCoverage(sampler2D tex, int i)
     return clamp(a / max(hi, 0.0001), 0.0, 1.0);
 }
 
-// Share of this fragment's pixel inside clipBox (box filter, exact for the
-// axis-aligned rect).
-float clipCoverage(void)
-{
-    vec2 lo = max(vertex - vec2(0.5), clipBox.xy);
-    vec2 hi = min(vertex + vec2(0.5), clipBox.zw);
-    vec2 overlap = clamp(hi - lo, 0.0, 1.0);
-    return overlap.x * overlap.y;
-}
-
 void main(void)
 {
     float coverage = surfaceCoverage(alphaTex0, 0);
@@ -157,6 +176,5 @@ void main(void)
     if (alphaCount > 3) {
         coverage = max(coverage, surfaceCoverage(alphaTex3, 3));
     }
-    coverage = min(coverage, clipCoverage());
     gl_FragColor = texture2D(texUnit, uv) * coverage * modulation;
 }
