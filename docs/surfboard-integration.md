@@ -101,6 +101,48 @@ opt-in / opt-out per class via the shape `alpha` / `region`.
 - Requires Plasma 6.7. On older KWin the toggle is inert and windows stay
   on the geometric path.
 
+### Mask registration at fractional scales (fixed 2026-10-21)
+
+**Symptom.** At scale 1.5 a one-device-pixel strip of blur peeked past
+alpha-masked surfaces: always along the left or top edge of the stacks
+Grid panel, at the left ends of some Fan pills, and blur went missing
+along the opposite edge. Which edges showed it depended on where the
+window opened.
+
+**Cause.** KWin 6.7 snaps what it draws: `ItemRendererOpenGL::
+createRenderNode` translates every item by its own position rounded to
+device pixels, and `RenderGeometry` rounds each quad vertex
+(`VertexSnappingMode::Round`). The alpha pass placed the surface texture
+at the *unrounded* device position (the old code argued sub-pixel
+placement keeps the client's antialiasing where the client put it). A
+window at an odd logical x or y lands on half a device pixel at 1.5:
+KWin drew it at e.g. x = 1172 while the mask was read for x = 1171.5, so
+every sample fell between two texels. The bilinear read spread the
+edge's alpha one pixel outwards (ring alpha 0.69 read as 0.345 on the
+transparent pixel beside it) and pulled it in on the far edge. In
+threshold mode coverage is `alpha / T` with T = 0.30 (Grid) or 0.32
+(Fan), so 0.345 saturated: full blur on a pixel the client left fully
+transparent. Silhouette mode suffers the same misplacement, only less
+visibly. Windows on whole device pixels were never affected.
+
+**Fix.** `drawAlphaMasked` computes the surface box the way KWin places
+the surface: the window item's position rounded to device pixels, plus
+each item down to the surface item rounded on its own, plus the window
+transform (`WindowPaintData` translation and scale) applied on top, with
+the size `round(logical size * scale)`. Mask texels now coincide with the
+pixels KWin draws, so edge pixels read the client's own alpha.
+
+**How it was measured.** In the headless KWin rig
+(`~/dev/surfboard-grid-rig`, `run-bdgrid.sh` + `session-bdgrid.sh`) over
+a black/white noise wallpaper, solving `D = C + (1 − a)(c·B + (1 − c)·S)`
+per pixel for the coverage `c`, and counting pixels where `c` exceeds
+`min(1, a / T)`. Before: 2554 such pixels on a Grid at odd x and y, 885 to
+3182 on the Fan depending on placement, all on window-parity edges.
+After: 0 at every placement, against a control built from the same
+source without the change. When checking a surface by eye, note that a
+screenshot taken under KWin's zoom effect magnifies everything; measure
+a known feature first.
+
 ### Recommendation per surfboard surface
 
 | app_id | Today | Suggested | Why |

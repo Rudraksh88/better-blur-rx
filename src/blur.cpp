@@ -1477,7 +1477,6 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         };
         collect(collect, rootItem);
 
-        const RectF frame = w->frameGeometry();
         const RectF backgroundDevice(0.0, 0.0, scaledBackgroundRect.width(), scaledBackgroundRect.height());
         struct Candidate {
             BBDX::AlphaMaskSurface surface;
@@ -1528,21 +1527,30 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                 continue;
             }
 
-            // Surface in scene (logical) coordinates, carried through the same
-            // window transform the blur shape received, into device pixels
-            // local to the blur's background rect. Not rounded: the texture is
-            // sampled, so sub-pixel placement is exactly what keeps the
-            // client's antialiasing where the client put it.
-            const RectF surfaceScene = surfaceItem->mapToScene(surfaceItem->rect());
-            const RectF transformedSurface{
-                frame.x() + (surfaceScene.x() - frame.x()) * data.xScale() + data.xTranslation(),
-                frame.y() + (surfaceScene.y() - frame.y()) * data.yScale() + data.yTranslation(),
-                surfaceScene.width() * data.xScale(),
-                surfaceScene.height() * data.yScale(),
-            };
-            const RectF deviceSurface = transformedSurface
-                                            .scaled(viewport.scale())
-                                            .translated(-scaledBackgroundRect.x(), -scaledBackgroundRect.y());
+            // Surface in device pixels local to the blur's background rect,
+            // placed exactly where KWin's item renderer draws it: every item
+            // from the window item down translates by its own position
+            // rounded to device pixels (ItemRendererOpenGL::createRenderNode),
+            // the quad's corners round too (RenderGeometry, VertexSnappingMode::
+            // Round), and the window transform applies on top of the window
+            // item's rounded origin (WindowPaintData::toMatrix). At a
+            // fractional scale an odd logical position lands on half a device
+            // pixel; left unrounded, the mask would sit half a texel off the
+            // drawn surface, the bilinear sample would bleed the edge's alpha
+            // one pixel outwards, and threshold coverage (alpha / T) turns
+            // such a bleed into a full-strength blur seam beside the edge.
+            const qreal scale = viewport.scale();
+            QPointF itemOffset;
+            for (Item *item = surfaceItem; item && item != windowItem; item = item->parentItem()) {
+                itemOffset += snapToPixelGridF(item->position() * scale);
+            }
+            const QPointF windowOrigin = snapToPixelGridF(windowItem->position() * scale);
+            const RectF deviceSurface = RectF{
+                windowOrigin.x() + data.xTranslation() * scale + itemOffset.x() * data.xScale(),
+                windowOrigin.y() + data.yTranslation() * scale + itemOffset.y() * data.yScale(),
+                std::round(surfaceItem->rect().width() * scale) * data.xScale(),
+                std::round(surfaceItem->rect().height() * scale) * data.yScale(),
+            }.translated(-scaledBackgroundRect.x(), -scaledBackgroundRect.y());
             const RectF visible = deviceSurface.intersected(backgroundDevice);
             if (visible.isEmpty()) {
                 skip("surface outside blur area");

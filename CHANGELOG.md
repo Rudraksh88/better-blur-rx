@@ -73,6 +73,14 @@ Things not in any tagged release yet:
   instead of being clipped by an integer client blur region.
 
 ### Bug Fixes
+- Alpha-masked blur no longer peeks one device pixel past a window placed on
+  half a device pixel (an odd logical position at scale 1.5). The mask used
+  the surface's unrounded device position while KWin draws every item at its
+  position rounded to device pixels, so the mask sat half a texel off the
+  drawn surface and the bilinear read bled the edge's alpha outwards; with
+  threshold coverage that bleed became full blur. The mask is now placed
+  exactly where KWin draws the surface. Details in
+  `docs/surfboard-integration.md`, "Mask registration at fractional scales".
 - Loading the effect while a force-blurred window was open crashed KWin:
   the window manager's constructor adds existing windows, and a
   force-blurred one called back into `BlurEffect::updateBlurRegion()` before
