@@ -650,6 +650,15 @@ bool BBDX::WindowManager::usesAlphaMask(const KWin::EffectWindow *w) const {
     return !w->hasDecoration() && blurRequestedByClient(w);
 }
 
+qreal BBDX::WindowManager::alphaClipInsetFor(const KWin::EffectWindow *w) const {
+    const WindowOverride *o = overrideFor(w);
+    if (!o || !o->alphaThresholdMode) {
+        return 0.0;
+    }
+    const SurfaceShape *shape = surfaceShapeFor(w);
+    return shape && shape->inset ? std::max<qreal>(*shape->inset, 0.0) : 0.0;
+}
+
 int BBDX::WindowManager::alphaMaskModeFor(const KWin::EffectWindow *w) const {
     const WindowOverride *o = overrideFor(w);
     return o && o->alphaThresholdMode ? 2 : m_alphaMaskMode;

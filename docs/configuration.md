@@ -147,15 +147,17 @@ capabilities() -> [string]
   antialiased rim; `T` is passed in `radius`.
 - `radius`: corner radius in logical px. `< 0` inherits. For
   `alpha-threshold`: the alpha at which coverage saturates, clamped to
-  0.01–1.0; `< 0` inherits the global "Full-blur alpha". The other numeric
-  arguments are ignored for this kind.
+  0.01–1.0; `< 0` inherits the global "Full-blur alpha". `exponent` and
+  `arrowCenterX` are ignored for this kind; `inset` clips (below).
 - `exponent`: superellipse exponent (2–8) for squircle bodies and pointed
   bodies. `<= 0` inherits.
 - `arrowCenterX`: pointed mask arrow tip, frame-local logical x. `< 0`
   inherits, which falls back to the position mined from the client's blur
   region.
 - `inset`: mask inset in logical px (squircle plate, pointed body). `< 0`
-  inherits.
+  inherits. For `alpha-threshold`: where the client's paint starts inside
+  its surface; coverage is clipped to the surface rect inset by it, except
+  on a side flush with the output edge. 0 clips nothing.
 
 `setSurfaceArrow` sets the pointed-arrow geometry for the class, independent
 of the shape fields (each call replaces its own group; `clearSurfaceShape`
@@ -183,6 +185,7 @@ one token per entry: `api=1`, `surface-shape`, `surface-arrow`,
 `remnant-alpha`, `alpha-mask` (kind `alpha` is compiled in: Plasma 6.7,
 Wayland), `alpha-threshold` (kind `alpha-threshold` is understood),
 `alpha-threshold-rim` (that kind's rim gets geometric coverage),
+`alpha-threshold-inset` (that kind's `inset` clips coverage),
 `alpha-mask-enabled` (the global toggle is on),
 `alpha-mask-threshold=<value>`, `alpha-mask-mode=threshold|silhouette` and
 `alpha-mask-floor=<value>`. A client that needs alpha-masked blur should

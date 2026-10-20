@@ -316,6 +316,12 @@ public:
      */
     int alphaMaskModeFor(const KWin::EffectWindow *w) const;
     qreal alphaMaskThresholdFor(const KWin::EffectWindow *w) const;
+    /**
+     * Logical px inside its surface where a published "alpha-threshold"
+     * shape's paint starts (setSurfaceShape's inset); the alpha pass clips
+     * coverage to the surface rect inset by it. 0 = no clip.
+     */
+    qreal alphaClipInsetFor(const KWin::EffectWindow *w) const;
 
     /** Whether the client asked for this surface's blur itself. */
     bool blurRequestedByClient(const KWin::EffectWindow *w) const;

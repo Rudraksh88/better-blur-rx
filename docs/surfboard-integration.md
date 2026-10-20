@@ -187,11 +187,73 @@ and the Grid. Every non-rim pixel came out identical (186 k on the Fan,
 edges had the same over-coverage and are fixed with it. Verified live on
 the user's session.
 
+### The dock plate on its own alpha (2026-10-21)
+
+**Symptom.** A faint blur band peeked outside the dock plate's dark ring
+along every corner arc. Once the plate moved onto its own alpha (below),
+the corners were clean but a 1 px line of blur showed along its vertical
+sides.
+
+**Cause, corners.** The plate was on the `squircle` SDF: the effect drew
+its own superellipse, matched to the plate's cubic corner (handle 0.757)
+only at 45°. Elsewhere on the arc it lies outside the cubic, by up to 0.28
+device px about 23° from each edge; its radius ignores the Glass ring's
+half-width, and its 1.5 px feather reaches past cairo's antialiasing.
+
+**Cause, sides.** On its own alpha the plate's rim is judged by
+`rimCoverage`, which divides a rim pixel's alpha by the brightest alpha
+nearby, taking that as the outer layer's full-coverage alpha. The Glass
+ring is 0.64 logical px wide, under one device pixel at 1.5, so no pixel
+shows its full alpha: on a straight edge every pixel sits at the same
+phase. On the sides, where the ring is darkest, the outermost pixel
+(alpha 0.40, half covered) was divided by 0.51 instead of the ring's 0.79
+and got 0.79 blur. Along a curve the ring crosses pixels at every phase,
+so the corners were unaffected. Separately, the plate paints up to its
+surface border, where the neighbourhood taps read the clamped edge texel
+and never saw transparency.
+
+**Fix.**
+- Surfboard publishes `surfboard-plate` as `alpha-threshold` with `T` =
+  the plate's fill opacity and `inset` = where its paint starts (half the
+  Glass ring's width; 0 for the Dual outline, whose 1 px ring starts at
+  the surface edge), and requests its whole silhouette as the blur region
+  (the alpha pass blurs only inside the region's bounding box).
+- The effect honours that `inset` for `alpha-threshold`: coverage is
+  capped by each pixel's overlap with the surface rect inset by it
+  (`clipCoverage`), which is exact on straight edges and never binds on
+  curves, where the alpha decides. A side flush with the output edge is
+  not clipped (a docked plate's bottom, a surface sliding off screen).
+  `capabilities()` reports `alpha-threshold-inset`. Surfaces publishing
+  inset 0, like the stacks, are unchanged.
+- `rimCoverage`'s taps past the buffer read as transparent (`rimTap`).
+
+**How it was measured.** The real plate helper driven standalone and the
+real dock end to end in the rig, shot over flat black and white (for the
+plate's own alpha) and over noise (for blur coverage), against the
+plate's true painted silhouette: its own path, rasterised 8×8
+supersampled (the rim estimator itself cannot be the reference here).
+Edge pixels half covered by the paint (0.50) got:
+
+| | corners: blurred px outside | vertical sides | top / bottom |
+| --- | --- | --- | --- |
+| squircle SDF | 164 (up to 0.39) | 0.51 | 0.51 |
+| own alpha | 0 | 0.79 | 0.58 |
+| own alpha + inset clip | 0 (mean error −0.02) | 0.51 | 0.51 |
+
+The same at an odd plate size and docked, where the screen-edge row
+keeps 0.99. The plate's interior, refraction included, is unchanged; Fan
+and Grid are bit-identical but for one pixel off by 1/255. An effect
+unload and reload republishes the shape through `surfaceShapesReset`.
+Live, the corners are clean and the sides much improved; a very faint
+vertical line along the sides is still visible on close inspection. The
+rig does not show it, and it was left there rather than teach the effect
+more of the plate's geometry.
+
 ### Recommendation per surfboard surface
 
 | app_id | Today | Suggested | Why |
 | --- | --- | --- | --- |
-| `surfboard-plate` | squircle SDF (+ flat bottom, inset, exponent) | keep SDF, publish params over D-Bus | refraction and the exact superellipse are SDF features; alpha mode would follow the 0.3 fill and drop to 60 % |
+| `surfboard-plate` | `alpha-threshold` at its fill opacity, published by the dock (since 2026-10-21); squircle SDF override as fallback | — | the superellipse only approximated the plate's cubic corners and leaked blur past them; refraction is a cache pass and unaffected by the mask |
 | `surfboard-tooltip` | pointed SDF + region-mined arrow | keep SDF, publish `arrowCenterX` over D-Bus | arrow geometry (height, shoulder, tip) is analytic; alpha would work but the SDF already matches the drawn shape |
 | `surfboard-thumbnailer` | pointed via override + region-mined arrow | same as tooltip | |
 | `surfboard-menu` | pointed menu via two-rect contract | `kind=pointed` + `radius` over D-Bus, keep the contract until every install has this build | removes class + geometry sniffing |
@@ -223,7 +285,8 @@ signal      surfaceShapesReset()
 `capabilities()` returns tokens: `api=1`, `surface-shape`, `surface-arrow`,
 `remnant-alpha`, and on a Plasma 6.7 Wayland build `alpha-mask`,
 `alpha-threshold` (kind `alpha-threshold` is understood) and
-`alpha-threshold-rim` (that kind's rim gets geometric coverage), plus
+`alpha-threshold-rim` (that kind's rim gets geometric coverage),
+`alpha-threshold-inset` (that kind's `inset` clips coverage), plus
 `alpha-mask-enabled`, `alpha-mask-threshold=<v>`,
 `alpha-mask-mode=threshold|silhouette` and `alpha-mask-floor=<v>` when the
 global toggle is on. Use it at startup and after `surfaceShapesReset` to
@@ -241,7 +304,7 @@ fallback; a successful
 | `radius` | corner radius, logical px; for `alpha-threshold` the saturation alpha `T` | `< 0` | 0 … 512; `alpha-threshold`: 0.01 … 1.0 |
 | `exponent` | superellipse exponent for squircle bodies and pointed bodies; 2 = rounded rectangle | `<= 0` | 2 … 8 |
 | `arrowCenterX` | pointed-mask arrow tip centre, **frame-local logical x** | `< 0` or NaN | 0 … 65536 |
-| `inset` | mask inset, logical px (squircle plate, pointed body) | `< 0` | 0 … 64 |
+| `inset` | mask inset, logical px (squircle plate, pointed body); for `alpha-threshold` where the client's paint starts, clipping coverage to the surface rect inset by it (0 = no clip) | `< 0` | 0 … 64 |
 
 Semantics:
 
@@ -260,11 +323,16 @@ Semantics:
   coverage `clamp(alpha / T, 0, 1)` for that class regardless of the global
   mode, except on the antialiased rim against transparency, where coverage
   is `alpha / max(T, local maximum)` (section 2, "Exact rim coverage";
-  `alpha-threshold-rim` token). `T` travels in `radius` and is clamped to 0.01 … 1.0 (`< 0` or NaN
-  inherits the global `AlphaMaskThreshold`); `exponent`, `arrowCenterX` and
-  `inset` are ignored for this kind (send 0, -1, 0). The corner radius is
-  not touched (it keeps inheriting, and only matters on the geometric
-  fallback). `surfaceShapes()` prints `T` in the radius slot. Requires the
+  `alpha-threshold-rim` token). `T` travels in `radius` and is clamped to
+  0.01 … 1.0 (`< 0` or NaN inherits the global `AlphaMaskThreshold`).
+  `inset` is where the client's paint starts inside its surface: coverage
+  is capped by each pixel's overlap with the surface rect inset by it,
+  except on a side flush with the output edge; 0 clips nothing (section 2,
+  "The dock plate on its own alpha"; `alpha-threshold-inset` token).
+  `exponent` and `arrowCenterX` are ignored for this kind (send 0, -1). The
+  corner radius is not touched (it keeps inheriting, and only matters on
+  the geometric fallback). `surfaceShapes()` prints `T` in the radius slot.
+  Requires the
   `alpha-threshold` capability token and, like `alpha`, the global
   `AlphaMask` toggle (`alpha-mask-enabled`) to take effect.
 - Applies immediately to every mapped window of that class and to

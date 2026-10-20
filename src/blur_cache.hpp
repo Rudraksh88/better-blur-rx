@@ -241,6 +241,10 @@ struct AlphaMaskParams {
     int mode{1};
     float threshold{0.5f};
     float floor{0.02f};
+    /// Coverage never exceeds this rect's share of each pixel: x0, y0, x1, y1
+    /// in device pixels local to the blur's background rect. The default
+    /// clips nothing. See WindowManager::alphaClipInsetFor.
+    QVector4D clipBox{-1.0e6f, -1.0e6f, 1.0e6f, 1.0e6f};
 };
 using AlphaMaskSurfaces = QVarLengthArray<AlphaMaskSurface, kMaxAlphaMaskSurfaces>;
 
@@ -275,6 +279,7 @@ private:
         int alphaModeLocation;
         int alphaThresholdLocation;
         int alphaFloorLocation;
+        int clipBoxLocation;
         int alphaTexLocation[kMaxAlphaMaskSurfaces];
         int texelSizeLocation[kMaxAlphaMaskSurfaces];
         int alphaTexMatrixLocation[kMaxAlphaMaskSurfaces];

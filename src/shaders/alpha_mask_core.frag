@@ -32,6 +32,13 @@ uniform int alphaCount;
 uniform int alphaMode;
 uniform float alphaThreshold;
 uniform float alphaFloor;
+// Coverage is capped by this rect's share of the pixel (x0, y0, x1, y1, in
+// the same device space as surfaceBox). Clips nothing unless a published
+// "alpha-threshold" shape gives an inset: then it is the surface inset to
+// where its paint starts, which keeps straight edges exact when the
+// outermost painted layer is thinner than a pixel (no texel shows its full
+// alpha, so the rim's alpha / local maximum over-covers there).
+uniform vec4 clipBox;
 uniform float modulation;
 
 in vec2 uv;
@@ -49,22 +56,33 @@ out vec4 fragColor;
 // wider ramps of rotated or resampled content. Fill pixels sit two texels
 // or more inside a ring and keep alpha / T. Never dividing by less than T
 // keeps translucent soft shadows at alpha / T.
-float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d)
+// Taps past the buffer's edge read as transparent rather than as the
+// clamped edge texel, so a surface painted up to its border (the dock
+// plate) still has a rim there. lo / hi bound the buffer in texture space.
+float rimTap(sampler2D tex, vec2 p, vec2 lo, vec2 hi)
+{
+    if (any(lessThan(p, lo)) || any(greaterThan(p, hi))) {
+        return 0.0;
+    }
+    return texture(tex, p).a;
+}
+
+float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d, vec2 lo, vec2 hi)
 {
     float threshold = max(alphaThreshold, 0.0001);
     if (a <= 0.0) {
         return 0.0;
     }
-    float lo = a;
+    float minA = a;
     float peak = a;
     for (int y = -1; y <= 1; ++y) {
         for (int x = -1; x <= 1; ++x) {
-            float n = texture(tex, t + vec2(float(x), float(y)) * d).a;
-            lo = min(lo, n);
+            float n = rimTap(tex, t + vec2(float(x), float(y)) * d, lo, hi);
+            minA = min(minA, n);
             peak = max(peak, n);
         }
     }
-    if (lo >= alphaFloor && a >= threshold - 2.0 / 255.0) {
+    if (minA >= alphaFloor && a >= threshold - 2.0 / 255.0) {
         return clamp(a / threshold, 0.0, 1.0);
     }
     for (int y = -2; y <= 2; ++y) {
@@ -72,12 +90,12 @@ float rimCoverage(sampler2D tex, vec2 t, float a, vec2 d)
             if (abs(float(x)) < 2.0 && abs(float(y)) < 2.0) {
                 continue;
             }
-            float n = texture(tex, t + vec2(float(x), float(y)) * d).a;
-            lo = min(lo, n);
+            float n = rimTap(tex, t + vec2(float(x), float(y)) * d, lo, hi);
+            minA = min(minA, n);
             peak = max(peak, n);
         }
     }
-    if (lo >= alphaFloor) {
+    if (minA >= alphaFloor) {
         return clamp(a / threshold, 0.0, 1.0);
     }
     return clamp(a / max(threshold, peak), 0.0, 1.0);
@@ -98,7 +116,9 @@ float surfaceCoverage(sampler2D tex, int i)
         return clamp(a / max(alphaThreshold, 0.0001), 0.0, 1.0);
     }
     if (alphaMode == 2) {
-        return rimCoverage(tex, t, a, texelSize[i]);
+        vec2 e0 = (alphaTexMatrix[i] * vec4(bufferSource[i].xy, 0.0, 1.0)).xy;
+        vec2 e1 = (alphaTexMatrix[i] * vec4(bufferSource[i].xy + bufferSource[i].zw, 0.0, 1.0)).xy;
+        return rimCoverage(tex, t, a, texelSize[i], min(e0, e1), max(e0, e1));
     }
 
     if (a < alphaFloor) {
@@ -128,6 +148,16 @@ float surfaceCoverage(sampler2D tex, int i)
     return clamp(a / max(hi, 0.0001), 0.0, 1.0);
 }
 
+// Share of this fragment's pixel inside clipBox (box filter, exact for the
+// axis-aligned rect).
+float clipCoverage(void)
+{
+    vec2 lo = max(vertex - vec2(0.5), clipBox.xy);
+    vec2 hi = min(vertex + vec2(0.5), clipBox.zw);
+    vec2 overlap = clamp(hi - lo, 0.0, 1.0);
+    return overlap.x * overlap.y;
+}
+
 void main(void)
 {
     float coverage = surfaceCoverage(alphaTex0, 0);
@@ -140,5 +170,6 @@ void main(void)
     if (alphaCount > 3) {
         coverage = max(coverage, surfaceCoverage(alphaTex3, 3));
     }
+    coverage = min(coverage, clipCoverage());
     fragColor = texture(texUnit, uv) * coverage * modulation;
 }

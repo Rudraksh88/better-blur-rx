@@ -156,7 +156,10 @@ public Q_SLOTS:
      *           <= 0 inherits.
      * arrowCenterX: pointed mask arrow tip, frame-local logical x; < 0 or
      *               NaN inherits (falls back to the region-mined position).
-     * inset: mask inset in logical px; < 0 inherits.
+     * inset: mask inset in logical px; < 0 inherits. For "alpha-threshold"
+     *        it is where the client's paint starts inside its surface:
+     *        coverage is clipped to the surface rect inset by it, except on
+     *        a side flush with the output edge; 0 clips nothing.
      * Returns false for an empty appId, unknown kind or non-finite value.
      */
     Q_SCRIPTABLE bool setSurfaceShape(const QString &appId,

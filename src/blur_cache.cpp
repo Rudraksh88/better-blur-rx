@@ -284,6 +284,8 @@ std::unique_ptr<BBDX::BlurCache> BBDX::BlurCache::create(BBDX::BlurEffect *effec
         blurCache->m_alphaTexturePass.shader->uniformLocation("alphaMode");
     blurCache->m_alphaTexturePass.alphaFloorLocation =
         blurCache->m_alphaTexturePass.shader->uniformLocation("alphaFloor");
+    blurCache->m_alphaTexturePass.clipBoxLocation =
+        blurCache->m_alphaTexturePass.shader->uniformLocation("clipBox");
     for (int i = 0; i < kMaxAlphaMaskSurfaces; ++i) {
         // Array elements are queried one by one: GL only guarantees a
         // location for "name[0]", not consecutive ones.
@@ -578,6 +580,7 @@ void BBDX::BlurCache::drawAlphaMaskedCached(const KWin::RenderViewport &viewport
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaModeLocation, params.mode);
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaThresholdLocation, params.threshold);
     m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaFloorLocation, params.floor);
+    m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.clipBoxLocation, params.clipBox);
     for (int i = 0; i < count; ++i) {
         const AlphaMaskSurface &surface = surfaces[i];
         m_alphaTexturePass.shader->setUniform(m_alphaTexturePass.alphaTexLocation[i], 1 + i);

@@ -389,6 +389,8 @@ QStringList BlurEffect::capabilities() const
     caps.append(QStringLiteral("alpha-threshold"));
     // ...whose antialiased rim gets the client's geometric coverage.
     caps.append(QStringLiteral("alpha-threshold-rim"));
+    // ...and whose inset clips coverage to where the client's paint starts.
+    caps.append(QStringLiteral("alpha-threshold-inset"));
     if (m_windowManager && m_windowManager->alphaMaskEnabled()) {
         caps.append(QStringLiteral("alpha-mask-enabled"));
         caps.append(QStringLiteral("alpha-mask-threshold=%1")
@@ -1486,6 +1488,7 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             bool root;
         };
         QVarLengthArray<Candidate, 8> candidates;
+        std::optional<RectF> rootDeviceSurface;
         const char *rootSkipReason = nullptr;
         for (SurfaceItem *surfaceItem : items) {
             const bool isRoot = surfaceItem == rootItem;
@@ -1558,6 +1561,9 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
                 skip("surface outside blur area");
                 continue;
             }
+            if (isRoot) {
+                rootDeviceSurface = deviceSurface;
+            }
             candidates.append(Candidate{
                 BBDX::AlphaMaskSurface{
                     alphaTexture,
@@ -1595,20 +1601,31 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         alphaCandidateCount = surfaces.size();
         alphaRootBox = surfaces[0].box;
         sampleAlphaOnce(surfaces[0].texture);
-        m_blurCache->drawAlphaMaskedCached(
-            viewport,
-            renderInfo,
-            vbo,
-            vertexCount,
-            modulation,
-            surfaces,
-            // Per window: a published "alpha-threshold" shape overrides the
-            // global mode and threshold; the uniforms are uploaded per draw.
-            BBDX::AlphaMaskParams{
-                m_windowManager->alphaMaskModeFor(w),
-                static_cast<float>(m_windowManager->alphaMaskThresholdFor(w)),
-                static_cast<float>(m_windowManager->alphaMaskFloor()),
-            });
+        // Per window: a published "alpha-threshold" shape overrides the
+        // global mode and threshold; the uniforms are uploaded per draw.
+        BBDX::AlphaMaskParams params{
+            m_windowManager->alphaMaskModeFor(w),
+            static_cast<float>(m_windowManager->alphaMaskThresholdFor(w)),
+            static_cast<float>(m_windowManager->alphaMaskFloor()),
+        };
+        // Its inset clips coverage to the root surface inset to where the
+        // client's paint starts. A side flush with the output edge keeps its
+        // full coverage: there the paint runs on to the screen edge (a
+        // docked plate's bottom, or a surface sliding off screen).
+        if (const qreal clipInset = m_windowManager->alphaClipInsetFor(w); clipInset > 0.0 && rootDeviceSurface) {
+            const RectF box = *rootDeviceSurface;
+            const RectF screen = RectF(viewport.scaledRenderRect())
+                                     .translated(-scaledBackgroundRect.x(), -scaledBackgroundRect.y());
+            const qreal dx = clipInset * viewport.scale() * data.xScale();
+            const qreal dy = clipInset * viewport.scale() * data.yScale();
+            constexpr float open = 1.0e6f;
+            params.clipBox = QVector4D(
+                box.left() <= screen.left() + 0.5 ? -open : static_cast<float>(box.left() + dx),
+                box.top() <= screen.top() + 0.5 ? -open : static_cast<float>(box.top() + dy),
+                box.right() >= screen.right() - 0.5 ? open : static_cast<float>(box.right() - dx),
+                box.bottom() >= screen.bottom() - 0.5 ? open : static_cast<float>(box.bottom() - dy));
+        }
+        m_blurCache->drawAlphaMaskedCached(viewport, renderInfo, vbo, vertexCount, modulation, surfaces, params);
         return true;
     };
     const auto drawFinalCached = [&]() {

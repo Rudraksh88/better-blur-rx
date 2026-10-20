@@ -89,6 +89,17 @@ Things not in any tagged release yet:
   `alpha / T`. Global alpha-mask modes are unchanged. `capabilities()` gains
   `alpha-threshold-rim`. Details in `docs/surfboard-integration.md`, "Exact
   rim coverage for `alpha-threshold`".
+- Published `alpha-threshold` shapes honour `inset` as the place their
+  paint starts: coverage is capped by each pixel's overlap with the surface
+  rect inset by it (sides flush with the output edge excepted). The rim
+  estimate divides by the brightest nearby alpha, which never reaches a
+  sub-pixel outer ring's full alpha on a straight edge; the dock plate's
+  0.64 px Glass ring got 0.79 blur on its sides where it covers 0.50. The
+  rim test also reads past the buffer edge as transparent instead of the
+  clamped edge texel, for surfaces painted up to their border.
+  `capabilities()` gains `alpha-threshold-inset`; inset 0 changes nothing.
+  Details in `docs/surfboard-integration.md`, "The dock plate on its own
+  alpha".
 - Loading the effect while a force-blurred window was open crashed KWin:
   the window manager's constructor adds existing windows, and a
   force-blurred one called back into `BlurEffect::updateBlurRegion()` before
