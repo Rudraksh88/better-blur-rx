@@ -750,7 +750,17 @@ BBDX::WallpaperData* BBDX::BlurCache::getWallpaper() {
     WindowPaintData data{};
 
     GLFramebuffer::pushFramebuffer(wallpaper.framebuffer.get());
+#if KWIN_VERSION < KWIN_VERSION_CODE(6, 7, 80)
     effects->drawWindow(wallpaperRenderTarget, wallpaperRenderViewport, desktop, KWin::Scene::PAINT_WINDOW_TRANSFORMED, KWin::Region::infinite(), data);
+#else
+    if (!effects->drawWindow(wallpaperRenderTarget, wallpaperRenderViewport, desktop, KWin::Scene::PAINT_WINDOW_TRANSFORMED, KWin::Region::infinite(), data)) {
+        GLFramebuffer::popFramebuffer();
+        // Leave the cache marked damaged so the next frame redraws it.
+        wallpaper.damaged = true;
+        qCWarning(BLUR_CACHE) << BBDX::LOG_PREFIX << "Drawing the desktop into the wallpaper buffer failed";
+        return nullptr;
+    }
+#endif
     GLFramebuffer::popFramebuffer();
 
     wallpaper.window = desktop->window();

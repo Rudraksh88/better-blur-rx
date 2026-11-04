@@ -1052,6 +1052,7 @@ bool BlurEffect::shouldBlur(const EffectWindow *w, int mask, const WindowPaintDa
     return true;
 }
 
+#if KWIN_VERSION < KWIN_VERSION_CODE(6, 7, 80)
 void BlurEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport &viewport, EffectWindow *w, int mask, const Region &deviceRegion, WindowPaintData &data)
 {
     blur(renderTarget, viewport, w, mask, deviceRegion, data);
@@ -1059,6 +1060,16 @@ void BlurEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewpo
     // Draw the window over the blurred area
     effects->drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
 }
+#else
+bool BlurEffect::drawWindow(const RenderTarget &renderTarget, const RenderViewport &viewport, EffectWindow *w, int mask, const Region &deviceRegion, WindowPaintData &data)
+{
+    blur(renderTarget, viewport, w, mask, deviceRegion, data);
+
+    // Draw the window over the blurred area. A false return means the item
+    // renderer gave up on the frame (e.g. lost its EGL context); pass it on.
+    return effects->drawWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+}
+#endif
 
 GLTexture *BlurEffect::ensureNoiseTexture()
 {
@@ -1512,10 +1523,12 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             // every resize frame would fall back to the geometric mask and the
             // blur would flicker (seen on the dock's magnify animation). Run
             // the same preprocess step now: it is idempotent, KWin's later
-            // call finds a matching size and no pending damage. Item's
-            // override is public; SurfaceItem only narrows its visibility.
-            static_cast<Item *>(surfaceItem)->preprocess();
+            // call finds a matching size and no pending damage.
             const char *textureReason = nullptr;
+            if (!BBDX::preprocessSurfaceTexture(surfaceItem, &textureReason)) {
+                skip(textureReason);
+                continue;
+            }
             GLTexture *alphaTexture = BBDX::surfaceGLTexture(surfaceItem, &textureReason);
             if (!alphaTexture) {
                 skip(textureReason);
@@ -1545,11 +1558,14 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
             // one pixel outwards, and threshold coverage (alpha / T) turns
             // such a bleed into a full-strength blur seam beside the edge.
             const qreal scale = viewport.scale();
+            const auto roundToDevicePixel = [](const QPointF &p) {
+                return QPointF(std::round(p.x()), std::round(p.y()));
+            };
             QPointF itemOffset;
             for (Item *item = surfaceItem; item && item != windowItem; item = item->parentItem()) {
-                itemOffset += snapToPixelGridF(item->position() * scale);
+                itemOffset += roundToDevicePixel(item->position() * scale);
             }
-            const QPointF windowOrigin = snapToPixelGridF(windowItem->position() * scale);
+            const QPointF windowOrigin = roundToDevicePixel(windowItem->position() * scale);
             const RectF deviceSurface = RectF{
                 windowOrigin.x() + data.xTranslation() * scale + itemOffset.x() * data.xScale(),
                 windowOrigin.y() + data.yTranslation() * scale + itemOffset.y() * data.yScale(),
