@@ -379,6 +379,9 @@ QStringList BlurEffect::capabilities() const
         QStringLiteral("api=1"),
         QStringLiteral("surface-shape"),
         QStringLiteral("surface-arrow"),
+        // A shape published as "<class>@dock" applies to that class's
+        // dock-type windows only, ahead of a plain "<class>" shape.
+        QStringLiteral("surface-key-dock"),
     };
 #ifndef BBDX_X11
     caps.append(QStringLiteral("remnant-alpha"));

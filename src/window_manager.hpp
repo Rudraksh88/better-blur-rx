@@ -181,6 +181,16 @@ private:
     void applySurfaceShape(const QString &appId);
     /** The published shape for this window's class, nullptr if none. */
     const SurfaceShape *surfaceShapeFor(const KWin::EffectWindow *w) const;
+    /**
+     * The key this window's published shape is stored under: "<class>@dock"
+     * for a dock-type window when that key was published, else "<class>".
+     * Lets two surfaces of one executable carry different shapes (surfboard's
+     * QML dock and its stacks are both "quickshell"). Capability
+     * "surface-key-dock".
+     */
+    QString surfaceKeyFor(const KWin::EffectWindow *w) const;
+    /** True if a shape published under appId applies to this window. */
+    static bool surfaceKeyMatches(const QString &appId, const KWin::EffectWindow *w);
 
     // match helpers
     bool matchesWindowClassFixed(const KWin::EffectWindow *w) const;

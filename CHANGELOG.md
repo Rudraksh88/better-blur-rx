@@ -72,6 +72,14 @@ Things not in any tagged release yet:
   use full coarse bounds so their configured radius remains authoritative
   instead of being clipped by an integer client blur region.
 
+- Published shapes can target a class's dock-type windows only: a shape
+  published as `<class>@dock` applies to dock windows of `<class>` ahead of
+  a plain `<class>` shape, and inherits that class's config override. Two
+  surfaces of one executable can now carry different shapes (surfboard's
+  QML dock and its stacks are both `quickshell`). `capabilities()` gains
+  `surface-key-dock`. Details in `docs/surfboard-integration.md`,
+  "Dock-type keys".
+
 ### Bug Fixes
 - Alpha-masked blur no longer peeks one device pixel past a window placed on
   half a device pixel (an odd logical position at scale 1.5). The mask used

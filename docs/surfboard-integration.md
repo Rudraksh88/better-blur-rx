@@ -367,7 +367,23 @@ Semantics:
   `kind`, or when the effect is not initialised; `clearSurfaceShape`
   returns `false` if nothing was published for that class.
 
-### Coordinate conventions
+### Dock-type keys: `<class>@dock` (2026-11-05)
+
+KWin names a layer-shell surface after its client's executable, so every
+surface of one executable shares a key. Surfboard's QML dock and its stacks
+are both `quickshell`, and they need different thresholds: the stacks' fill
+alpha (0.30–0.32) and the dock's lowest icon-glass alpha (T 0.12).
+
+A shape published as `appId = "<class>@dock"` applies only to that class's
+**dock-type** windows (`EffectWindow::isDock()`; for layer surfaces, the
+`dock` namespace), and wins over a plain `<class>` shape for them. A dock
+window without an `@dock` shape still uses `<class>`; non-dock windows never
+see `@dock` shapes. The `@dock` entry inherits the config override of
+`<class>`. Every method that takes `appId` accepts the suffix, and
+`surfaceShapes()` lists it as published. Capability token:
+`surface-key-dock`. Check it before publishing: an older effect accepts the
+call but never matches it.
+
 
 `arrowCenterX` is **frame-local logical** x: measured from the left edge of
 the window's frame geometry, in logical (unscaled) pixels. For a

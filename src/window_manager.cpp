@@ -35,6 +35,11 @@
 
 Q_LOGGING_CATEGORY(WINDOW_MANAGER, "kwin_effect_better_blur_dx.window_manager", QtInfoMsg)
 
+namespace {
+// Published shape keys "<class>@dock" apply to dock-type windows of <class> only.
+const QString kDockKeySuffix = QStringLiteral("@dock");
+}
+
 BBDX::WindowManager::WindowManager(BBDX::BlurEffect *effect) {
     m_effect = effect;
 
@@ -281,7 +286,12 @@ void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
     const SurfaceShape &shape = *shapeIt;
 
     WindowOverride merged{};
-    if (const WindowOverride *base = configOverrideForClass(appId)) {
+    // A "<class>@dock" key inherits from the config entry of its class.
+    QString baseClass = appId;
+    if (baseClass.endsWith(kDockKeySuffix)) {
+        baseClass.chop(kDockKeySuffix.size());
+    }
+    if (const WindowOverride *base = configOverrideForClass(baseClass)) {
         merged = *base;
     }
     // The merged entry always matches this exact class, whatever the base
@@ -327,7 +337,7 @@ void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
 
 void BBDX::WindowManager::applySurfaceShape(const QString &appId) {
     for (const auto &[effectWindow, window] : m_windows) {
-        if (effectWindow->window()->resourceClass() != appId) {
+        if (!surfaceKeyMatches(appId, effectWindow)) {
             continue;
         }
         // A window KWin retains for its close animation has no surface any
@@ -348,11 +358,31 @@ void BBDX::WindowManager::applySurfaceShape(const QString &appId) {
     }
 }
 
+QString BBDX::WindowManager::surfaceKeyFor(const KWin::EffectWindow *w) const {
+    const QString windowClass = w->window()->resourceClass();
+    if (w->isDock()) {
+        QString dockKey = windowClass + kDockKeySuffix;
+        if (m_surfaceShapes.contains(dockKey)) {
+            return dockKey;
+        }
+    }
+    return windowClass;
+}
+
+bool BBDX::WindowManager::surfaceKeyMatches(const QString &appId, const KWin::EffectWindow *w) {
+    const QString windowClass = w->window()->resourceClass();
+    if (appId == windowClass) {
+        return true;
+    }
+    return w->isDock() && appId.size() == windowClass.size() + kDockKeySuffix.size()
+        && appId.startsWith(windowClass) && appId.endsWith(kDockKeySuffix);
+}
+
 const BBDX::SurfaceShape *BBDX::WindowManager::surfaceShapeFor(const KWin::EffectWindow *w) const {
     if (m_surfaceShapes.isEmpty()) {
         return nullptr;
     }
-    const auto it = m_surfaceShapes.constFind(w->window()->resourceClass());
+    const auto it = m_surfaceShapes.constFind(surfaceKeyFor(w));
     return it == m_surfaceShapes.constEnd() ? nullptr : &*it;
 }
 
@@ -422,7 +452,7 @@ bool BBDX::WindowManager::setSurfaceArrow(const QString &appId,
     rebuildSurfaceOverride(appId);
     // Geometry only: no region or radius change, a repaint is enough.
     for (const auto &[effectWindow, window] : m_windows) {
-        if (effectWindow->window()->resourceClass() != appId) {
+        if (!surfaceKeyMatches(appId, effectWindow)) {
             continue;
         }
 #ifndef BBDX_X11
@@ -592,7 +622,7 @@ bool BBDX::WindowManager::overrideMatchesWindow(const WindowOverride &o, const K
 
 const BBDX::WindowOverride *BBDX::WindowManager::overrideFor(const KWin::EffectWindow *w) const {
     if (!m_surfaceOverrides.isEmpty()) {
-        const auto it = m_surfaceOverrides.constFind(w->window()->resourceClass());
+        const auto it = m_surfaceOverrides.constFind(surfaceKeyFor(w));
         if (it != m_surfaceOverrides.constEnd()) {
             return &*it;
         }
