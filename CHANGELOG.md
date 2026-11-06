@@ -2,6 +2,13 @@
 Things not in any tagged release yet:
 
 ### Features
+- **Backdrop probes** (D-Bus `setSurfaceProbe`, capability
+  `surface-probe`): a client registers a strip of its surface and receives
+  `surfaceProbe(appId, luma[])`, the luma of the blurred backdrop along it,
+  whenever the effect re-blurs that window and the values change. Read back
+  asynchronously (pixel buffer + fence, zero-timeout polling), at most one
+  capture per 33 ms and one signal per 50 ms per probe. Surfboard's dock
+  uses it to turn its indicator dots plus-darker over light backdrops.
 - **Alpha-masked blur** (General → Corners → "Shape blur by window alpha",
   off by default). Undecorated windows that request blur themselves (CSD
   apps, layer-shell panels, docks) have their blur shaped by their own alpha

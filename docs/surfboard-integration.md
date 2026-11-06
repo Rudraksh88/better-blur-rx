@@ -301,6 +301,11 @@ bool        clearSurfaceShape(string appId)
 array<string> surfaceShapes()
 array<string> capabilities()
 signal      surfaceShapesReset()
+bool        setSurfaceProbe(string appId, double x, double y,
+                            double width, double height, int bins)
+bool        clearSurfaceProbe(string appId)
+array<string> surfaceProbes()
+signal      surfaceProbe(string appId, array<double> luma)
 ```
 
 `capabilities()` returns tokens: `api=1`, `surface-shape`, `surface-arrow`,
@@ -426,6 +431,56 @@ bool setSurfaceArrow(string appId, string edge,
 
 Only the plate blur-radius preview stays purely global
 (`previewDockSurfaces`).
+
+### Backdrop probes: `setSurfaceProbe` (2026-11-07)
+
+How bright is the backdrop behind a surface, for a client that wants to
+adapt its own paint (surfboard's dock dots turn plus-darker over light
+backdrops)? Clients cannot read the pixels behind them; the effect already
+has them, blurred, every time it re-blurs the window. Capability
+`surface-probe`.
+
+```
+bool setSurfaceProbe(string appId, double x, double y,
+                     double width, double height, int bins)
+signal surfaceProbe(string appId, array<double> luma)
+```
+
+- `appId` is keyed like shapes: `<class>` for every window of the class,
+  `<class>@dock` for its dock-type windows only (preferred when both exist).
+- `x, y, width, height`: a strip of the surface, surface-local logical px.
+  `bins`: 1 … 512 values across it, left to right. Anything else → `false`.
+- Whenever the effect re-blurs a probed window's backdrop (its blur cache
+  flushes; never on a frame that reuses the cached blur), the strip of the
+  final blurred texture is scaled into `bins` texels and read into a pixel
+  buffer. The fence is made by the polling timer after KWin has submitted
+  the frame (one made inside the frame flushes KWin's command stream early)
+  and looked at with a zero timeout; no frame waits for the GPU.
+- `luma` is Rec. 709 luma of the encoded (sRGB) values, 0 … 1, of the
+  backdrop **under** the window: everything stacked below it, blurred with
+  the window's own blur settings, before the window's paint and the colour
+  matrix. For the dock window that includes the plate surface beneath it.
+  A bin not wholly on the blurred area (the window's blur region's bounding
+  box) reads `-1`, so a strip may span the whole surface while the region
+  moves inside it.
+- Sent only when a bin moves by more than 1.5 / 255, at most every 50 ms
+  (the last change always goes out). Setting or moving a probe re-blurs the
+  class's windows once, so the first reading arrives over a still scene.
+- Cost: at most one capture per probe every 33 ms with one readback in
+  flight. A re-blur skipped for either reason is not lost: if nothing
+  re-blurs again within the interval, the window is re-blurred once more,
+  so the last change of a burst (a window closing behind the dock) is read.
+  Rig (headless KWin on an AMD Radeon 880M, radeonsi, GLES 3.2; the dock
+  zooming across its row): inside the frame 29 µs CPU a capture (median,
+  p90 40), after it 7 µs for the fence and 14 µs per readback, at most 30
+  captures and 15 signals a second; a one-off ~0.6 ms when the probe's GL
+  objects are created. With the fence made inside the frame a capture cost
+  143 µs.
+- Probes live in memory like shapes and vanish on reload
+  (`surfaceShapesReset` covers both: register again).
+
+`clearSurfaceProbe(appId)` removes one; `surfaceProbes()` lists
+`"appId x y width height bins"` lines.
 
 ### Blur fades with `wp_alpha_modifier`
 

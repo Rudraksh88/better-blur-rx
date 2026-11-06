@@ -1,6 +1,7 @@
 add_subdirectory(kcm)
 
 set(better_blur_dx_SOURCES
+    backdrop_probe.cpp
     blur.cpp
     blur.qrc
     blur_cache.cpp

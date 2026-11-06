@@ -9,6 +9,7 @@
 
 #include <QStringList>
 
+#include "backdrop_probe.hpp"
 #include "blur_cache.hpp"
 
 #include "kwin_compat.hpp"
@@ -143,6 +144,12 @@ Q_SIGNALS:
      * setSurfaceShape is gone and clients should publish again.
      */
     Q_SCRIPTABLE void surfaceShapesReset();
+    /**
+     * A backdrop probe's bins (setSurfaceProbe) moved: the luma (0..1, Rec.
+     * 709 on the encoded values) of the blurred backdrop along the strip,
+     * left to right. Sent only on change, at most every 50 ms.
+     */
+    Q_SCRIPTABLE void surfaceProbe(const QString &appId, const QList<double> &luma);
 
 public Q_SLOTS:
     /**
@@ -195,12 +202,32 @@ public Q_SLOTS:
     /// One "appId kind radius exponent arrowCenterX inset" line per shape.
     Q_SCRIPTABLE QStringList surfaceShapes() const;
     /**
+     * Probe how bright the backdrop behind a window is (capability
+     * "surface-probe"). For every window of the class (dock-type windows
+     * only for an "<class>@dock" key), whenever the effect re-blurs its
+     * backdrop, the strip x, y, width, height (surface-local logical px) of
+     * that blurred backdrop is averaged into `bins` (1..512) values and sent
+     * as surfaceProbe when they change. The readback is asynchronous; no
+     * frame waits for it. Returns false for an empty appId or bad geometry.
+     */
+    Q_SCRIPTABLE bool setSurfaceProbe(const QString &appId,
+                                      double x,
+                                      double y,
+                                      double width,
+                                      double height,
+                                      int bins);
+    /// Remove a probe; false if none was set for appId.
+    Q_SCRIPTABLE bool clearSurfaceProbe(const QString &appId);
+    /// One "appId x y width height bins" line per probe.
+    Q_SCRIPTABLE QStringList surfaceProbes() const;
+    /**
      * What this build and configuration can do, so a client can tell "the
      * D-Bus API exists" from "alpha masking is actually on" without reading
      * kwinrc. Tokens:
      *   api=1                 contract version of the surface-shape methods
      *   surface-shape         setSurfaceShape / clearSurfaceShape / surfaceShapes
      *   surface-arrow         setSurfaceArrow (edge, height, ...)
+     *   surface-probe         setSurfaceProbe / clearSurfaceProbe / surfaceProbe
      *   remnant-alpha         published classes keep their last
      *                         wp_alpha_modifier through the close animation
      *   alpha-mask            kind=alpha is compiled in (Plasma 6.7 Wayland)
@@ -231,6 +258,8 @@ public Q_SLOTS:
 
 private:
     void initBlurStrengthValues();
+    /** Invalidate and repaint every window a backdrop probe watches. */
+    void refreshProbedWindows();
     RegionF blurRegion(EffectWindow *w) const;
     RegionF decorationBlurRegion(const EffectWindow *w) const;
     bool decorationSupportsBlurBehind(const EffectWindow *w) const;
@@ -347,6 +376,7 @@ private:
     std::unique_ptr<BBDX::BlurCache> m_blurCache{};
     friend void BBDX::BlurCache::flushAccumulatedDirtyRegions(KWin::ScreenPrePaintData &data) const;
     std::unique_ptr<BBDX::RefractionPass> m_refractionPass{};
+    std::unique_ptr<BBDX::BackdropProbe> m_backdropProbe{};
 
 public:
     WindowManager* windowManager() const { return m_windowManager.get(); }

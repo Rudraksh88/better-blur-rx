@@ -107,6 +107,14 @@ BlurEffect::BlurEffect()
     BlurConfig::instance(effects->config());
     ensureResources();
 
+    m_backdropProbe = std::make_unique<BBDX::BackdropProbe>(
+        [this](const QString &appId, const QList<double> &luma) {
+            Q_EMIT surfaceProbe(appId, luma);
+        },
+        [this](const QString &) {
+            refreshProbedWindows();
+        });
+
     m_onscreenPass.shader = ShaderManager::instance()->generateShaderFromFile(ShaderTrait::MapTexture,
                                                                               BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/vertex.vert"),
                                                                               BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/onscreen.frag"));
@@ -265,6 +273,9 @@ BlurEffect::~BlurEffect()
 {
     QDBusConnection::sessionBus().unregisterObject(
         QStringLiteral("/org/kde/KWin/Effects/BetterBlurDX"));
+    if (m_backdropProbe) {
+        m_backdropProbe->releaseGl(); // the GL context is current here
+    }
 #if !defined(BBDX_X11) && KWIN_VERSION < KWIN_VERSION_CODE(6, 6, 90)
     // When compositing is restarted, avoid removing the manager immediately.
     if (s_blurManager) {
@@ -373,12 +384,47 @@ QStringList BlurEffect::surfaceShapes() const
     return m_windowManager ? m_windowManager->surfaceShapes() : QStringList();
 }
 
+bool BlurEffect::setSurfaceProbe(const QString &appId, double x, double y, double width, double height, int bins)
+{
+    if (!m_backdropProbe || !m_backdropProbe->set(appId.trimmed(), QRectF(x, y, width, height), bins)) {
+        return false;
+    }
+    // Re-blur the class's windows once, so a probe set over a still scene
+    // gets its first reading.
+    refreshProbedWindows();
+    return true;
+}
+
+void BlurEffect::refreshProbedWindows()
+{
+    for (EffectWindow *window : effects->stackingOrder()) {
+        if (m_backdropProbe->wants(window)) {
+            m_windowManager->invalidateBlurCache(window,
+                                                 static_cast<uint>(BBDX::BlurCacheInvalidationFlag::REGION),
+                                                 "Backdrop probe refresh");
+            window->addRepaintFull();
+        }
+    }
+}
+
+bool BlurEffect::clearSurfaceProbe(const QString &appId)
+{
+    return m_backdropProbe && m_backdropProbe->clear(appId.trimmed());
+}
+
+QStringList BlurEffect::surfaceProbes() const
+{
+    return m_backdropProbe ? m_backdropProbe->list() : QStringList();
+}
+
 QStringList BlurEffect::capabilities() const
 {
     QStringList caps{
         QStringLiteral("api=1"),
         QStringLiteral("surface-shape"),
         QStringLiteral("surface-arrow"),
+        // setSurfaceProbe: the blurred backdrop's luma along a strip.
+        QStringLiteral("surface-probe"),
         // A shape published as "<class>@dock" applies to that class's
         // dock-type windows only, ahead of a plain "<class>" shape.
         QStringLiteral("surface-key-dock"),
@@ -1845,6 +1891,16 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         }
 
         ShaderManager::instance()->popShader();
+    }
+
+    // BBDX: backdrop probes read the freshly blurred backdrop (framebuffers[1],
+    // the upsample's result), only on frames that recompute it.
+    if (m_backdropProbe->wants(w)) {
+        m_backdropProbe->capture(w,
+                                 QPointF(w->pos().x() + data.xTranslation(), w->pos().y() + data.yTranslation()),
+                                 QSizeF(data.xScale(), data.yScale()),
+                                 QRect(backgroundRect),
+                                 renderInfo.framebuffers[1].get());
     }
 
     // A per-window color override (brightness/saturation/contrast) takes
