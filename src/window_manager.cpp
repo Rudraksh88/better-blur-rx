@@ -35,11 +35,6 @@
 
 Q_LOGGING_CATEGORY(WINDOW_MANAGER, "kwin_effect_better_blur_dx.window_manager", QtInfoMsg)
 
-namespace {
-// Published shape keys "<class>@dock" apply to dock-type windows of <class> only.
-const QString kDockKeySuffix = QStringLiteral("@dock");
-}
-
 BBDX::WindowManager::WindowManager(BBDX::BlurEffect *effect) {
     m_effect = effect;
 
@@ -286,12 +281,9 @@ void BBDX::WindowManager::rebuildSurfaceOverride(const QString &appId) {
     const SurfaceShape &shape = *shapeIt;
 
     WindowOverride merged{};
-    // A "<class>@dock" key inherits from the config entry of its class.
-    QString baseClass = appId;
-    if (baseClass.endsWith(kDockKeySuffix)) {
-        baseClass.chop(kDockKeySuffix.size());
-    }
-    if (const WindowOverride *base = configOverrideForClass(baseClass)) {
+    // A typed key ("<class>@dock", "<class>@utility") inherits from the
+    // config entry of its class.
+    if (const WindowOverride *base = configOverrideForClass(BBDX::surfaceKeyClass(appId))) {
         merged = *base;
     }
     // The merged entry always matches this exact class, whatever the base
@@ -360,10 +352,10 @@ void BBDX::WindowManager::applySurfaceShape(const QString &appId) {
 
 QString BBDX::WindowManager::surfaceKeyFor(const KWin::EffectWindow *w) const {
     const QString windowClass = w->window()->resourceClass();
-    if (w->isDock()) {
-        QString dockKey = windowClass + kDockKeySuffix;
-        if (m_surfaceShapes.contains(dockKey)) {
-            return dockKey;
+    if (const QString suffix = BBDX::surfaceTypeSuffix(w); !suffix.isEmpty()) {
+        QString typedKey = windowClass + suffix;
+        if (m_surfaceShapes.contains(typedKey)) {
+            return typedKey;
         }
     }
     return windowClass;
@@ -374,8 +366,9 @@ bool BBDX::WindowManager::surfaceKeyMatches(const QString &appId, const KWin::Ef
     if (appId == windowClass) {
         return true;
     }
-    return w->isDock() && appId.size() == windowClass.size() + kDockKeySuffix.size()
-        && appId.startsWith(windowClass) && appId.endsWith(kDockKeySuffix);
+    const QString suffix = BBDX::surfaceTypeSuffix(w);
+    return !suffix.isEmpty() && appId.size() == windowClass.size() + suffix.size()
+        && appId.startsWith(windowClass) && appId.endsWith(suffix);
 }
 
 const BBDX::SurfaceShape *BBDX::WindowManager::surfaceShapeFor(const KWin::EffectWindow *w) const {

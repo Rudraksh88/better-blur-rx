@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace KWin {
 class EffectWindow;
@@ -42,6 +43,14 @@ namespace BBDX {
  * stale, and if no later pass captures it by the end of the interval the
  * window is re-blurred once (`refresh`), so the last change of a burst is
  * never missed.
+ *
+ * A probe is either a strip (setSurfaceProbe: `bins` values across a rect)
+ * or a set of points (setSurfacePoints: one value per point, anywhere on the
+ * surface, e.g. under labels laid out along a curve). Points cost what a
+ * strip does: their bounding box is scaled into a small grid (texels at
+ * least kPointCell logical px apart, at most kMaxGridTexels) with the same
+ * single blit and readback, and each point's luma is interpolated from the
+ * grid when the readback lands, outside the frame.
  */
 class BackdropProbe : public QObject {
     Q_OBJECT
@@ -54,13 +63,24 @@ public:
 
     /** rect: surface-local logical px; bins: 1..kMaxBins. False if invalid. */
     bool set(const QString &appId, const QRectF &rect, int bins);
+    /** points: surface-local logical px, 1..kMaxBins of them. False if invalid. */
+    bool setPoints(const QString &appId, const QList<QPointF> &points);
     bool clear(const QString &appId);
-    /** One "appId x y width height bins" line per probe. */
+    /**
+     * One line per probe: "appId x y width height bins" for a strip,
+     * "appId x y width height count points" (their bounding box) for points.
+     */
     QStringList list() const;
     bool isEmpty() const { return m_probes.empty(); }
 
     /** True if w has a probe (cheap; called for every blurred window). */
     bool wants(const KWin::EffectWindow *w) const;
+    /**
+     * The probe key for w: "<class>@dock" / "<class>@utility" for a window
+     * of that type if probed (BBDX::surfaceTypeSuffix), else "<class>" if
+     * probed, else "".
+     */
+    QString keyFor(const KWin::EffectWindow *w) const;
     /**
      * After the blur passes for w: sample `blurred` (the final blurred
      * backdrop, covering `backgroundRect` in logical px at its own size).
@@ -78,6 +98,11 @@ public:
     void releaseGl();
 
     static constexpr int kMaxBins = 512;
+    // Points: grid texels at least this far apart (logical px; the backdrop
+    // is blurred, so neighbouring texels interpolate it well) and at most
+    // this many of them.
+    static constexpr double kPointCell = 8.0;
+    static constexpr int kMaxGridTexels = 4096;
     static constexpr int kMinIntervalMs = 50;
     static constexpr int kMinCaptureMs = 33;
     // A bin must move by more than this (luma 0..1) for a new signal.
@@ -85,8 +110,14 @@ public:
 
 private:
     struct Probe {
-        QRectF rect;
-        int bins = 0;
+        QRectF rect; // a strip; for points, their bounding box
+        int bins = 0; // values sent: the strip's bins or the point count
+        QList<QPointF> points; // empty for a strip
+        double cell = 0.0; // points: the grid's texel spacing, logical px
+        QSize grid; // the readback: bins x 1 for a strip
+        // Points: each point's position in the grid of the readback in
+        // flight, in texels (NaN off the blurred backdrop).
+        std::vector<QPointF> gridAt;
         QList<double> sent;
         QList<double> latest; // read back, not yet sent (rate limit)
         bool hasLatest = false;
@@ -104,8 +135,25 @@ private:
         int validTo = 0;
     };
 
-    /** The probe key for w ("<class>@dock" for dock windows if probed), or "". */
-    QString keyFor(const KWin::EffectWindow *w) const;
+    /** Drop GL objects of a probe whose readback size changes. */
+    void resize(Probe &probe, const QSize &grid);
+    /**
+     * The texels of the blurred texture to read for a strip or points probe
+     * (empty if none) and where they go in its framebuffer.
+     */
+    QRect stripSource(Probe &probe,
+                      const QPointF &origin,
+                      const QSizeF &scale,
+                      const QRect &backgroundRect,
+                      const QSize &textureSize,
+                      QRect &destination);
+    QRect pointSource(Probe &probe,
+                      const QPointF &origin,
+                      const QSizeF &scale,
+                      const QRect &backgroundRect,
+                      const QSize &textureSize,
+                      QRect &destination);
+    QList<double> pointLuma(const Probe &probe, const uchar *pixels) const;
     bool ensureGl(Probe &probe);
     void releaseGl(Probe &probe);
     void poll();

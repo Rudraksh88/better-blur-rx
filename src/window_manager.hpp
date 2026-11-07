@@ -183,10 +183,11 @@ private:
     const SurfaceShape *surfaceShapeFor(const KWin::EffectWindow *w) const;
     /**
      * The key this window's published shape is stored under: "<class>@dock"
-     * for a dock-type window when that key was published, else "<class>".
+     * for a dock-type window, "<class>@utility" for a utility-type one, when
+     * that key was published, else "<class>" (BBDX::surfaceTypeSuffix).
      * Lets two surfaces of one executable carry different shapes (surfboard's
-     * QML dock and its stacks are both "quickshell"). Capability
-     * "surface-key-dock".
+     * QML dock and its stacks are both "quickshell"). Capabilities
+     * "surface-key-dock", "surface-key-utility".
      */
     QString surfaceKeyFor(const KWin::EffectWindow *w) const;
     /** True if a shape published under appId applies to this window. */

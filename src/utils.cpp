@@ -3,6 +3,7 @@
 #include "kwin_compat.hpp"
 #include "kwin_texture_mirror.hpp"
 
+#include <effect/effectwindow.h>
 #include <scene/surfaceitem.h>
 
 #if !defined(BBDX_X11) && KWIN_VERSION >= KWIN_VERSION_CODE(6, 7, 80)
@@ -234,4 +235,25 @@ bool BBDX::preprocessSurfaceTexture(KWin::SurfaceItem *item, const char **reason
     static_cast<KWin::Item *>(item)->preprocess();
 #endif
     return true;
+}
+
+QString BBDX::surfaceTypeSuffix(const KWin::EffectWindow *w)
+{
+    if (w->isDock()) {
+        return QStringLiteral("@dock");
+    }
+    if (w->isUtility()) {
+        return QStringLiteral("@utility");
+    }
+    return QString();
+}
+
+QString BBDX::surfaceKeyClass(const QString &appId)
+{
+    for (const QLatin1StringView suffix : {QLatin1StringView("@dock"), QLatin1StringView("@utility")}) {
+        if (appId.endsWith(suffix)) {
+            return appId.chopped(suffix.size());
+        }
+    }
+    return appId;
 }

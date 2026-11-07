@@ -147,7 +147,8 @@ Q_SIGNALS:
     /**
      * A backdrop probe's bins (setSurfaceProbe) moved: the luma (0..1, Rec.
      * 709 on the encoded values) of the blurred backdrop along the strip,
-     * left to right. Sent only on change, at most every 50 ms.
+     * left to right, or at each point in order (setSurfacePoints). Sent
+     * only on change, at most every 50 ms.
      */
     Q_SCRIPTABLE void surfaceProbe(const QString &appId, const QList<double> &luma);
 
@@ -204,7 +205,8 @@ public Q_SLOTS:
     /**
      * Probe how bright the backdrop behind a window is (capability
      * "surface-probe"). For every window of the class (dock-type windows
-     * only for an "<class>@dock" key), whenever the effect re-blurs its
+     * only for an "<class>@dock" key, utility-type ones only for
+     * "<class>@utility"), whenever the effect re-blurs its
      * backdrop, the strip x, y, width, height (surface-local logical px) of
      * that blurred backdrop is averaged into `bins` (1..512) values and sent
      * as surfaceProbe when they change. The readback is asynchronous; no
@@ -216,9 +218,21 @@ public Q_SLOTS:
                                       double width,
                                       double height,
                                       int bins);
+    /**
+     * Probe at points instead of along a strip (capability
+     * "surface-probe-points"): `xy` holds x, y pairs, surface-local logical
+     * px, 1..512 points anywhere on the surface; surfaceProbe then carries
+     * one value per point, in order (-1 off the blurred backdrop). Replaces
+     * a strip under the same appId and vice versa. Returns false for an
+     * empty appId, an odd or bad list.
+     */
+    Q_SCRIPTABLE bool setSurfaceProbePoints(const QString &appId, const QList<double> &xy);
     /// Remove a probe; false if none was set for appId.
     Q_SCRIPTABLE bool clearSurfaceProbe(const QString &appId);
-    /// One "appId x y width height bins" line per probe.
+    /**
+     * One "appId x y width height bins" line per strip, "appId x y width
+     * height count points" (their bounding box) per points probe.
+     */
     Q_SCRIPTABLE QStringList surfaceProbes() const;
     /**
      * What this build and configuration can do, so a client can tell "the
@@ -228,6 +242,9 @@ public Q_SLOTS:
      *   surface-shape         setSurfaceShape / clearSurfaceShape / surfaceShapes
      *   surface-arrow         setSurfaceArrow (edge, height, ...)
      *   surface-probe         setSurfaceProbe / clearSurfaceProbe / surfaceProbe
+     *   surface-probe-points  setSurfaceProbePoints
+     *   surface-key-dock      "<class>@dock" keys (dock-type windows only)
+     *   surface-key-utility   "<class>@utility" keys (utility-type windows only)
      *   remnant-alpha         published classes keep their last
      *                         wp_alpha_modifier through the close animation
      *   alpha-mask            kind=alpha is compiled in (Plasma 6.7 Wayland)
@@ -258,8 +275,8 @@ public Q_SLOTS:
 
 private:
     void initBlurStrengthValues();
-    /** Invalidate and repaint every window a backdrop probe watches. */
-    void refreshProbedWindows();
+    /** Invalidate and repaint every window the probe under `key` watches. */
+    void refreshProbedWindows(const QString &key);
     RegionF blurRegion(EffectWindow *w) const;
     RegionF decorationBlurRegion(const EffectWindow *w) const;
     bool decorationSupportsBlurBehind(const EffectWindow *w) const;

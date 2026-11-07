@@ -12,6 +12,11 @@
 #include <QString>
 #include <QtNumeric>
 
+namespace KWin
+{
+class EffectWindow;
+}
+
 namespace BBDX
 {
 
@@ -116,5 +121,20 @@ KWin::Rect rectRoundedOut(KWin::RectF rect);
  * Version agnostic helper for KWin::Region(F)::translated()
  */
 KWin::RegionF regionTranslatedF(KWin::RegionF region, QPointF translation);
+
+/**
+ * Surface keys (setSurfaceShape, setSurfaceProbe; docs/surfboard-integration.md):
+ * "<class>" applies to every window of a resource class, "<class>@dock" only
+ * to its dock-type windows and "<class>@utility" only to its utility-type
+ * ones (a layer surface takes its type from its namespace). The typed key
+ * wins over "<class>" when both exist. One executable's surfaces share a
+ * class: surfboard's QML dock and its stacks are both "quickshell".
+ *
+ * The key suffix for w's type ("@dock", "@utility"), or "" for any other type.
+ */
+QString surfaceTypeSuffix(const KWin::EffectWindow *w);
+
+/** appId without its type suffix: the class a typed key belongs to. */
+QString surfaceKeyClass(const QString &appId);
 
 }

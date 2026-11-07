@@ -372,7 +372,7 @@ Semantics:
   `kind`, or when the effect is not initialised; `clearSurfaceShape`
   returns `false` if nothing was published for that class.
 
-### Dock-type keys: `<class>@dock` (2026-11-05)
+### Typed keys: `<class>@dock`, `<class>@utility` (2026-11-05, 2026-11-07)
 
 KWin names a layer-shell surface after its client's executable, so every
 surface of one executable shares a key. Surfboard's QML dock and its stacks
@@ -388,6 +388,14 @@ see `@dock` shapes. The `@dock` entry inherits the config override of
 `surfaceShapes()` lists it as published. Capability token:
 `surface-key-dock`. Check it before publishing: an older effect accepts the
 call but never matches it.
+
+`<class>@utility` does the same for the class's **utility-type** windows
+(`EffectWindow::isUtility()`; the `utility` layer-shell namespace, which
+surfboard's stack window uses), for shapes and probes alike. Capability
+token: `surface-key-utility` (2026-11-07). It lets the stacks probe their
+own window without a plain `quickshell` probe, which would also catch the
+dock window whenever the dock has no `@dock` probe (icon glass off).
+`BBDX::surfaceTypeSuffix` / `surfaceKeyClass` (`utils.h`) hold the rule.
 
 
 `arrowCenterX` is **frame-local logical** x: measured from the left edge of
@@ -447,7 +455,8 @@ signal surfaceProbe(string appId, array<double> luma)
 ```
 
 - `appId` is keyed like shapes: `<class>` for every window of the class,
-  `<class>@dock` for its dock-type windows only (preferred when both exist).
+  `<class>@dock` / `<class>@utility` for its dock-type / utility-type
+  windows only (preferred when both exist).
 - `x, y, width, height`: a strip of the surface, surface-local logical px.
   `bins`: 1 … 512 values across it, left to right. Anything else → `false`.
 - Whenever the effect re-blurs a probed window's backdrop (its blur cache
@@ -480,7 +489,39 @@ signal surfaceProbe(string appId, array<double> luma)
   (`surfaceShapesReset` covers both: register again).
 
 `clearSurfaceProbe(appId)` removes one; `surfaceProbes()` lists
-`"appId x y width height bins"` lines.
+`"appId x y width height bins"` lines (`"appId x y width height count
+points"`, their bounding box, for points).
+
+#### Points: `setSurfaceProbePoints` (2026-11-07)
+
+```
+bool setSurfaceProbePoints(string appId, array<double> xy)
+```
+
+The same luma at points anywhere on the surface instead of along one
+strip: surfboard's Fan has its filename labels on a curve, each tilted,
+none on a common row. Capability `surface-probe-points`.
+
+- `xy`: x, y pairs, surface-local logical px, 1 … 512 points. An odd,
+  empty or non-finite list → `false`. It replaces a strip under the same
+  `appId`, and a strip replaces it.
+- `surfaceProbe` then carries one value per point, in order; `-1` for a
+  point off the blurred area.
+- Same cost as a strip: the points' bounding box is scaled with the same
+  single blit into a small grid (texels at least 8 logical px apart, at
+  most 4096 of them) and read back the same way; each point's luma is
+  interpolated bilinearly from the grid when the readback lands, in the
+  polling timer, outside the frame. The grid's rows come back bottom-up
+  (`glReadPixels`), which `pointLuma` undoes.
+- Setting points re-blurs only the windows under that key (strips too,
+  since 2026-11-07: before, every probed window).
+- Rig (2026-11-07, the stacks' Fan, 134–138 points, a 456 × 777 window,
+  Falls wallpaper swapped to light and back twice): 132 captures in 34 s,
+  at most 17 a second; capture 7 µs CPU (median; p90 19), fence 1 µs,
+  readback with the interpolation 9 µs (p90 15); 23 signals. Over a
+  wallpaper light above y = 650 and dark below, the values were 0.952 and
+  0.125, the wallpaper's own lumas, and the one label crossing the edge
+  ramped 0.365 → 0.130 along its tilt.
 
 ### Blur fades with `wp_alpha_modifier`
 

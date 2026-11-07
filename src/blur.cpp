@@ -111,8 +111,8 @@ BlurEffect::BlurEffect()
         [this](const QString &appId, const QList<double> &luma) {
             Q_EMIT surfaceProbe(appId, luma);
         },
-        [this](const QString &) {
-            refreshProbedWindows();
+        [this](const QString &key) {
+            refreshProbedWindows(key);
         });
 
     m_onscreenPass.shader = ShaderManager::instance()->generateShaderFromFile(ShaderTrait::MapTexture,
@@ -386,19 +386,38 @@ QStringList BlurEffect::surfaceShapes() const
 
 bool BlurEffect::setSurfaceProbe(const QString &appId, double x, double y, double width, double height, int bins)
 {
-    if (!m_backdropProbe || !m_backdropProbe->set(appId.trimmed(), QRectF(x, y, width, height), bins)) {
+    const QString key = appId.trimmed();
+    if (!m_backdropProbe || !m_backdropProbe->set(key, QRectF(x, y, width, height), bins)) {
         return false;
     }
-    // Re-blur the class's windows once, so a probe set over a still scene
+    // Re-blur the key's windows once, so a probe set over a still scene
     // gets its first reading.
-    refreshProbedWindows();
+    refreshProbedWindows(key);
     return true;
 }
 
-void BlurEffect::refreshProbedWindows()
+bool BlurEffect::setSurfaceProbePoints(const QString &appId, const QList<double> &xy)
+{
+    if (xy.isEmpty() || xy.size() % 2 != 0) {
+        return false;
+    }
+    QList<QPointF> points;
+    points.reserve(xy.size() / 2);
+    for (qsizetype i = 0; i < xy.size(); i += 2) {
+        points.append(QPointF(xy[i], xy[i + 1]));
+    }
+    const QString key = appId.trimmed();
+    if (!m_backdropProbe || !m_backdropProbe->setPoints(key, points)) {
+        return false;
+    }
+    refreshProbedWindows(key);
+    return true;
+}
+
+void BlurEffect::refreshProbedWindows(const QString &key)
 {
     for (EffectWindow *window : effects->stackingOrder()) {
-        if (m_backdropProbe->wants(window)) {
+        if (m_backdropProbe->keyFor(window) == key) {
             m_windowManager->invalidateBlurCache(window,
                                                  static_cast<uint>(BBDX::BlurCacheInvalidationFlag::REGION),
                                                  "Backdrop probe refresh");
@@ -425,9 +444,13 @@ QStringList BlurEffect::capabilities() const
         QStringLiteral("surface-arrow"),
         // setSurfaceProbe: the blurred backdrop's luma along a strip.
         QStringLiteral("surface-probe"),
-        // A shape published as "<class>@dock" applies to that class's
-        // dock-type windows only, ahead of a plain "<class>" shape.
+        // setSurfaceProbePoints: the same luma at points anywhere on a surface.
+        QStringLiteral("surface-probe-points"),
+        // A shape or probe keyed "<class>@dock" applies to that class's
+        // dock-type windows only, ahead of a plain "<class>" one;
+        // "<class>@utility" likewise to its utility-type windows.
         QStringLiteral("surface-key-dock"),
+        QStringLiteral("surface-key-utility"),
     };
 #ifndef BBDX_X11
     caps.append(QStringLiteral("remnant-alpha"));
