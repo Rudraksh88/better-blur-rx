@@ -1,5 +1,5 @@
 {
-  description = "Fork of the KWin Blur effect for KDE Plasma 6 with additional features (including force blur) and bug fixes";
+  description = "Better Blur DX fork for KDE Plasma 6 on Wayland: blur shaped by window alpha and by shapes clients publish over D-Bus";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

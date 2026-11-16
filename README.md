@@ -1,271 +1,142 @@
-# Better Blur DX
-Better Blur DX is a loose continuation of [Better Blur](https://github.com/taj-ny/kwin-effects-forceblur/) - a fork of the Plasma 6 blur effect with additional features and bug fixes.
+# Better Blur RX
 
-![image](https://github.com/user-attachments/assets/f8a7c618-89b4-485a-b0f8-29dd5f77e3ca)
+Better Blur RX is a fork of [Better Blur DX](https://github.com/xarblu/kwin-effects-better-blur-dx)
+for KDE Plasma 6 on Wayland. On top of everything DX does, the blur behind a
+window can follow the window's own alpha channel, and clients can publish the
+exact shape of their blur over D-Bus: squircles, pointed tooltips, menus, docks.
 
-### Features
-- Force blur
-- Adjustable blur brightness, contrast and saturation
-- Adjustable corner radius
-- Refraction
+It was built as the compositor side of [Surfboard](https://github.com/Rudraksh88/surfboard),
+a dock for KDE Plasma, but nothing in it is specific to Surfboard: any window can use it.
 
-You may notice these are *less* features than the original Better Blur.
-Notably ["Static Blur" is currently missing](https://github.com/xarblu/kwin-effects-better-blur-dx/issues/16)
-because it wasn't trivially portable to the Plasma 6.5 blur and needs to be reimplemented.
+The line it descends from: KWin's Blur effect, then [Better Blur](https://github.com/taj-ny/kwin-effects-forceblur)
+by taj-ny, then Better Blur DX by Xarblu, then this fork. RX branched from DX's
+`main` of 2026-07-11 and has diverged a long way since.
 
-### Bug fixes
-Fixes for blur-related Plasma bugs that haven't been patched yet.
+## What RX adds
 
-- Blur may sometimes disappear during animations
-- [Transparent color schemes don't work properly with the Breeze application style](https://github.com/taj-ny/kwin-effects-forceblur/pull/38)
+Everything Better Blur DX has (force blur; blur brightness, contrast and
+saturation; corner radius; refraction; DX's fixes for Plasma blur bugs), plus:
 
-### Supported Plasma releases
-Better Blur DX should always work on the current stable version of Plasma.
-Older versions aren't tested much besides a basic "it compiles" and may or may not work.
+- **Blur shaped by window alpha.** Undecorated windows that ask for blur
+  themselves (CSD apps, layer-shell panels and docks) get blur cut to their
+  own antialiased silhouette, instead of the integer rectangles the Wayland
+  blur protocol carries. Rounded and irregular corners need no per-app
+  settings. Settings → General → Corners → "Shape blur by window alpha".
+- **Shapes published at run time over D-Bus.** A client sets its blur shape
+  per app ID (`setSurfaceShape`): rounded, squircle, flat-bottomed squircle,
+  pointed with an arrow it can move (`setSurfaceArrow`), its own alpha, or an
+  alpha threshold, each with an optional inset.
+  `capabilities()` tells a client what this build supports.
+- **Antialiased masks** for squircle windows, pointed tooltips, and menus and
+  combo-box popups.
+- **Backdrop probes.** A client can ask for the brightness of the blurred
+  backdrop behind a strip or a set of points of its surface
+  (`setSurfaceProbe`, `setSurfaceProbePoints`), to switch its text or
+  indicators between light and dark.
+- **Fades follow the window.** Blur opacity follows `wp_alpha_modifier`, so
+  windows that fade with it fade their blur too.
+- **Per-window overrides** with a rule editor and a window picker, on a
+  redesigned settings page.
+- **Fixes:** blur stays during window transforms and while a window closes,
+  is never drawn for a closed window's remnant, and refreshes its geometry
+  deterministically.
 
-Currently supported versions: **6.5**, **6.6**, **6.7**
+[CHANGELOG.md](CHANGELOG.md) has the details, [docs/surfboard-integration.md](docs/surfboard-integration.md)
+the D-Bus contract, and [docs/configuration.md](docs/configuration.md) the settings.
 
-### X11 Support
-While building the effect is supported for both X11 and Wayland, X11 is more or less deprecated and not tested much.
-Thus the X11 version of the effect needs to be explicitly built using the `-DBBDX_X11=ON` `cmake` option.
+## Compatibility
 
-We'll see how feasible maintaining the X11 version is for future Plasma releases as it seems like
-KWin X11 doesn't see any API changes since version 6.5 meaning the Wayland and X11 will keep drifting apart.
+- **KDE Plasma 6 on Wayland.** Tested on KWin 6.8.2. The build refuses KWin
+  older than 6.4; versions before 6.8 are untested.
+- **X11** may build with `-DBBDX_X11=ON` but is untested, and the
+  alpha-shaped and D-Bus features are Wayland-only.
+- **Rebuild after every KWin update.** KWin effects only work with the exact
+  KWin version they were built for. KWin also needs a restart (log out and
+  back in) to load an updated effect; a first install doesn't.
 
-# Installation
-> [!IMPORTANT]
-> If the effect stops working after a system upgrade, you will need to rebuild it or reinstall the package.
-> The effect only works for the *exact KWin* version it was built for.
-> Additionally KWin needs to be restarted (e.g. via logout+login) to load an *updated* version of the effect
-> (the initial install doesn't need this).
+### It replaces Better Blur DX
 
-## Packages
-<details>
-  <summary>Arch Linux AUR (maintained by https://github.com/D3SOX)</summary>
-  <br>
+RX keeps DX's plugin ID (`better_blur_dx`), settings and D-Bus interface
+(`org.kde.KWin.Effects.BetterBlurDX` on `/org/kde/KWin/Effects/BetterBlurDX`).
+It installs over DX, keeps your DX settings, and clients written for DX keep
+working. The two can't be installed side by side: remove a DX package first,
+such as `kwin-effects-better-blur-dx` from the AUR.
 
-  **Tagged releases:**
+## Installation
 
-  Wayland:
-
-  ```sh
-  yay -S kwin-effects-better-blur-dx
-  ```
-
-  X11:
-
-  ```sh
-  yay -S kwin-effects-better-blur-dx-x11
-  ```
-  
-  **`-git` packages tracking the `main` branch:**
-
-  Wayland:
-
-  ```sh
-  yay -S kwin-effects-better-blur-dx-git
-  ```
-
-  X11:
-
-  ```sh
-  yay -S kwin-effects-better-blur-dx-x11-git
-  ```
-
-  (Or use your AUR helper of choice instead of `yay`)
-</details>
-
-<details>
-  <summary>Gentoo (maintained by me - https://github.com/xarblu)</summary>
-  <br>
-
-  ```sh
-  eselect repository enable xarblu-overlay
-  emerge --sync xarblu-overlay
-  emerge --ask kde-misc/kwin-effects-better-blur-dx
-  ```
-</details>
-
-<details>
-  <summary>Fedora COPR (maintained by https://github.com/Infinality)</summary>
-  <br>
-
-  Details: https://copr.fedorainfracloud.org/coprs/infinality/kwin-effects-better-blur-dx/
-
-  ```sh
-  dnf copr enable infinality/kwin-effects-better-blur-dx
-  dnf install kwin-effects-better-blur-dx
-  dnf install kwin-effects-better-blur-dx-x11
-  ```
-</details>
-
-<details>
-  <summary>NixOS (flakes)</summary>
-  <br>
-
-  ``flake.nix``:
-  ```nix
-  {
-    inputs = {
-      nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-
-      kwin-effects-better-blur-dx = {
-        url = "github:xarblu/kwin-effects-better-blur-dx";
-        inputs.nixpkgs.follows = "nixpkgs";
-      };
-    };
-  }
-  ```
-
-  ```nix
-  { inputs, pkgs, ... }:
-
-  {
-    environment.systemPackages = [
-      inputs.kwin-effects-better-blur-dx.packages.${pkgs.system}.default # Wayland
-      inputs.kwin-effects-better-blur-dx.packages.${pkgs.system}.x11 # X11
-    ];
-  }
-  ```
-</details>
-
-## Manual
-> [!NOTE]
-> On Fedora Kinoite and other distributions based on it, the effect must be built in a container.
+There are no packages yet; build it from source.
 
 ### Dependencies
-- CMake
-- Extra CMake Modules
-- Plasma 6
-- Qt 6
-- KF6
-- KWin development packages
 
-<details>
-  <summary>Arch Linux</summary>
-  <br>
+CMake, Extra CMake Modules, Qt 6, KDE Frameworks 6 and KWin's development
+files. On Arch Linux:
 
-  Wayland:
-  ```
-  sudo pacman -S base-devel git extra-cmake-modules qt6-tools kwin
-  ```
-  
-  X11:
-  ```
-  sudo pacman -S base-devel git extra-cmake-modules qt6-tools kwin-x11
-  ```
-</details>
-
-<details>
-  <summary>Debian-based (KDE Neon, Kubuntu, Ubuntu)</summary>
-  <br>
-
-  Wayland:
-  ```
-  sudo apt install -y git cmake g++ extra-cmake-modules qt6-tools-dev kwin-dev libkf6configwidgets-dev gettext libkf6crash-dev libkf6globalaccel-dev libkf6kio-dev libkf6service-dev libkf6notifications-dev libkf6kcmutils-dev libkdecorations3-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-res0-dev libxcb-sync-dev
-  ```
-  
-  X11:
-  ```
-  sudo apt install -y git cmake g++ extra-cmake-modules qt6-tools-dev kwin-x11-dev libkf6configwidgets-dev gettext libkf6crash-dev libkf6globalaccel-dev libkf6kio-dev libkf6service-dev libkf6notifications-dev libkf6kcmutils-dev libkdecorations3-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-res0-dev libxcb-sync-dev
-  ```
-</details>
-
-<details>
-  <summary>Fedora 41, 42</summary>
-  <br>
-
-  Wayland:
-  ```
-  sudo dnf -y install git cmake extra-cmake-modules gcc-g++ kf6-kwindowsystem-devel plasma-workspace-devel libplasma-devel qt6-qtbase-private-devel qt6-qtbase-devel cmake kwin-devel extra-cmake-modules kwin-devel kf6-knotifications-devel kf6-kio-devel kf6-kcrash-devel kf6-ki18n-devel kf6-kguiaddons-devel libepoxy-devel kf6-kglobalaccel-devel kf6-kcmutils-devel kf6-kconfigwidgets-devel kf6-kdeclarative-devel kdecoration-devel kf6-kglobalaccel kf6-kdeclarative libplasma kf6-kio qt6-qtbase kf6-kguiaddons kf6-ki18n wayland-devel libdrm-devel
-  ```
-  
-  X11:
-  ```
-  sudo dnf -y install git cmake extra-cmake-modules gcc-g++ kf6-kwindowsystem-devel plasma-workspace-devel libplasma-devel qt6-qtbase-private-devel qt6-qtbase-devel cmake extra-cmake-modules kf6-knotifications-devel kf6-kio-devel kf6-kcrash-devel kf6-ki18n-devel kf6-kguiaddons-devel libepoxy-devel kf6-kglobalaccel-devel kf6-kcmutils-devel kf6-kconfigwidgets-devel kf6-kdeclarative-devel kdecoration-devel kf6-kglobalaccel kf6-kdeclarative libplasma kf6-kio qt6-qtbase kf6-kguiaddons kf6-ki18n wayland-devel libdrm-devel kwin-x11-devel
-  ```
-</details>
-
-<details>
-  <summary>openSUSE</summary>
-  <br>
-
-  Wayland:
-  ```
-  sudo zypper in -y git cmake-full gcc-c++ kf6-extra-cmake-modules kcoreaddons-devel kguiaddons-devel kconfigwidgets-devel kwindowsystem-devel ki18n-devel kiconthemes-devel kpackage-devel frameworkintegration-devel kcmutils-devel kirigami2-devel "cmake(KF6Config)" "cmake(KF6CoreAddons)" "cmake(KF6FrameworkIntegration)" "cmake(KF6GuiAddons)" "cmake(KF6I18n)" "cmake(KF6KCMUtils)" "cmake(KF6KirigamiPlatform)" "cmake(KF6WindowSystem)" "cmake(Qt6Core)" "cmake(Qt6DBus)" "cmake(Qt6Quick)" "cmake(Qt6Svg)" "cmake(Qt6Widgets)" "cmake(Qt6Xml)" "cmake(Qt6UiTools)" "cmake(KF6Crash)" "cmake(KF6GlobalAccel)" "cmake(KF6KIO)" "cmake(KF6Service)" "cmake(KF6Notifications)" libepoxy-devel kwin6-devel
-  ```
-  
-  X11:
-  ```
-  sudo zypper in -y git cmake-full gcc-c++ kf6-extra-cmake-modules kcoreaddons-devel kguiaddons-devel kconfigwidgets-devel kwindowsystem-devel ki18n-devel kiconthemes-devel kpackage-devel frameworkintegration-devel kcmutils-devel kirigami2-devel "cmake(KF6Config)" "cmake(KF6CoreAddons)" "cmake(KF6FrameworkIntegration)" "cmake(KF6GuiAddons)" "cmake(KF6I18n)" "cmake(KF6KCMUtils)" "cmake(KF6KirigamiPlatform)" "cmake(KF6WindowSystem)" "cmake(Qt6Core)" "cmake(Qt6DBus)" "cmake(Qt6Quick)" "cmake(Qt6Svg)" "cmake(Qt6Widgets)" "cmake(Qt6Xml)" "cmake(Qt6UiTools)" "cmake(KF6Crash)" "cmake(KF6GlobalAccel)" "cmake(KF6KIO)" "cmake(KF6Service)" "cmake(KF6Notifications)" libepoxy-devel kwin6-x11-devel
-  ```
-</details>
-
-### Building
 ```sh
-git clone https://github.com/xarblu/kwin-effects-better-blur-dx
-cd kwin-effects-better-blur-dx
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr
-make -j$(nproc)
-sudo make install
+sudo pacman -S --needed base-devel git extra-cmake-modules qt6-tools kwin
 ```
 
-By default this will build the effect for the regular (Wayland) KWin.
-To build a version for KWin X11 add `-DBBDX_X11=ON` to the `cmake` invocation.
+The [Better Blur DX README](https://github.com/xarblu/kwin-effects-better-blur-dx#dependencies)
+lists the packages for Debian, Ubuntu, Fedora and openSUSE; RX needs the same.
 
-<details>
-  <summary>Building on Fedora Kinoite</summary>
-  <br>
+### Building
 
-  ```sh
-  # enter container
-  git clone https://github.com/xarblu/kwin-effects-better-blur-dx
-  cd kwin-effects-better-blur-dx
-  mkdir build
-  cd build
-  cmake .. -DCMAKE_INSTALL_PREFIX=/usr
-  make -j$(nproc)
-  cpack -V -G RPM
-  exit # exit container
-  sudo rpm-ostree install kwin-effects-better-blur-dx/build/kwin-better-blur-dx.rpm
-  ```
-</details>
+```sh
+git clone https://github.com/Rudraksh88/better-blur-rx
+cd better-blur-rx
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build --parallel "$(nproc)"
+sudo cmake --install build
+```
 
-**Remove the *build* directory when rebuilding the effect.**
+After a KWin update, delete `build` and run these again, then log out and back in.
 
-# Usage
-This effect conflicts with the default KWin blur effect (and other effects replacing it).
+## Usage
 
-1. Install the plugin.
-2. Open the *Desktop Effects* page in *System Settings*.
-3. Disable any blur effects.
-4. Enable the *Better Blur DX* effect.
+This effect conflicts with KWin's own Blur effect and other effects that replace it.
+
+1. Open *System Settings → Desktop Effects*.
+2. Turn off any other blur effect.
+3. Turn on *Better Blur RX*.
 
 ### Window transparency
-The window needs to be translucent in order for the blur to be visible. This can be done in multiple ways:
-- Use a transparent theme for the program if it supports it
-- Use a transparent color scheme, such as [Alpha](https://store.kde.org/p/1972214)
-- Create a window rule that reduces the window opacity
 
-### Obtaining window classes
-The classes of windows to blur can be specified in the effect settings. You can obtain them in two ways:
-  - Run ``qdbus org.kde.KWin /KWin org.kde.KWin.queryWindowInfo`` and click on the window. You can use either *resourceClass* or *resourceName*.
-  - Right click on the titlebar, go to *More Options* and *Configure Special Window/Application Settings*. The class can be found at *Window class (application)*. If there is a space, for example *Navigator firefox*, you can use either *Navigator* or *firefox*.
+Blur only shows behind translucent windows. Make a window translucent with:
 
-# Known Issues
-## Incompatibility with other effects
-This effect has some compatibility issues with some other effects.
+- a transparent theme, if the program supports one;
+- a transparent color scheme, such as [Alpha](https://store.kde.org/p/1972214);
+- a window rule that lowers the window's opacity.
 
-- "Blur" from KWin - Because we effectively replace the KWin blur you shouldn't use both in parallel. Some windows might get double blurred and "look off" if you do.
-- "Wobbly Windows" from KWin - We're blurring a square region behind the window. Either that square will bleed out of the deformed window or KWin will skip the blur entirely while the "wobble effect" is active.
+### Window classes
 
-## High cursor latency or stuttering on Wayland
-This effect can be very resource-intensive if you have a lot of windows open. On Wayland, high GPU load may result in higher cursor latency or even stuttering. If that bothers you, set the following environment variable: ``KWIN_DRM_NO_AMS=1``. If that's not enough, try enabling or disabling the software cursor by also setting ``KWIN_FORCE_SW_CURSOR=0`` or ``KWIN_FORCE_SW_CURSOR=1``.
+Force blur and overrides match windows by class. To find a window's class:
 
-Intel GPUs use software cursor by default due to [this bug](https://gitlab.freedesktop.org/drm/intel/-/issues/9571), however it doesn't seem to affect all GPUs.
+- Run `qdbus org.kde.KWin /KWin org.kde.KWin.queryWindowInfo` and click the
+  window; use *resourceClass* or *resourceName*.
+- Or right-click its title bar, choose *More Actions → Configure Special
+  Application Settings*, and read *Window class (application)*. For a class
+  with a space, such as *Navigator firefox*, use either word.
 
-# Credits
-- [a-parhom/LightlyShaders](https://github.com/a-parhom/LightlyShaders) - CMakeLists.txt files
-- [taj-ny/kwin-effects-forceblur](https://github.com/taj-ny/kwin-effects-forceblur) - The original Better Blur
+## Known issues
+
+- **Other blur effects:** don't run KWin's Blur next to this effect. Some
+  windows get blurred twice and look wrong.
+- **Wobbly Windows:** the blur covers the window's rectangle, so it either
+  bleeds past a wobbling window or is skipped while the wobble lasts.
+- **Cursor latency on Wayland:** with many windows open, the GPU load can
+  delay or stutter the cursor. Setting `KWIN_DRM_NO_AMS=1` helps; if not, also
+  try `KWIN_FORCE_SW_CURSOR=0` or `KWIN_FORCE_SW_CURSOR=1`. Intel GPUs use a
+  software cursor by default because of
+  [this bug](https://gitlab.freedesktop.org/drm/intel/-/issues/9571).
+
+## Credits
+
+- The KWin development team, for the Blur effect this is built on.
+- [taj-ny/kwin-effects-forceblur](https://github.com/taj-ny/kwin-effects-forceblur): the original Better Blur.
+- [xarblu/kwin-effects-better-blur-dx](https://github.com/xarblu/kwin-effects-better-blur-dx):
+  Better Blur DX, which this forks, with contributions from DaddelZeit and iGerman00.
+- [a-parhom/LightlyShaders](https://github.com/a-parhom/LightlyShaders): the CMakeLists.txt files.
+
+## License
+
+GPL-3.0 ([LICENSE](LICENSE)). Sources taken from KWin carry their own
+`GPL-2.0-or-later` headers.

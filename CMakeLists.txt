@@ -13,11 +13,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CPACK_PACKAGE_NAME "kwin-better-blur-dx")
+set(CPACK_PACKAGE_NAME "kwin-better-blur-rx")
 set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
-set(CPACK_PACKAGE_FILE_NAME "kwin-better-blur-dx")
+set(CPACK_PACKAGE_FILE_NAME "kwin-better-blur-rx")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fork of kwin-better-blur, which itself is a fork of the default KDE Blur that includes useful additions, with continued development")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Better Blur DX fork for KDE Plasma 6 on Wayland: blur shaped by window alpha and by shapes clients publish over D-Bus")
 include(CPack)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -25,7 +25,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # user build options
-option(BBDX_X11 "Build Better Blur DX for KWin X11 instead of KWin Wayland" OFF)
+option(BBDX_X11 "Build Better Blur RX for KWin X11 instead of KWin Wayland (untested)" OFF)
 option(BBDX_DEBUG "Enable extra code paths useful for debugging (Warning: major performance impact)" OFF)
 
 # deprecated build options
@@ -89,7 +89,7 @@ else()
 endif()
 
 if(${KWin_VERSION} VERSION_LESS 6.4)
-    message(FATAL_ERROR "Better Blur DX does not support your Plasma version (${KWin_VERSION}). See the README for more information.")
+    message(FATAL_ERROR "Better Blur RX does not support your Plasma version (${KWin_VERSION}). See the README for more information.")
 endif()
 
 add_subdirectory(src)

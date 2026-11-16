@@ -112,7 +112,7 @@ BlurEffectConfig::BlurEffectConfig(QObject *parent, const KPluginMetaData &data)
     if (about.open(QIODevice::ReadOnly)) {
         const auto html = about.readAll()
             .replace("${version}", ABOUT_VERSION_STRING)
-            .replace("${repo}", "https://github.com/xarblu/kwin-effects-better-blur-dx");
+            .replace("${repo}", "https://github.com/Rudraksh88/better-blur-rx");
         ui.aboutText->setHtml(html);
     }
 
@@ -211,7 +211,7 @@ bool BlurEffectConfig::eventFilter(QObject *watched, QEvent *event)
     // (non-dialog) hosts are left alone.
     if (watched == widget() && event->type() == QEvent::Show) {
         if (auto *dialog = qobject_cast<QDialog *>(widget()->window())) {
-            dialog->setWindowTitle(QStringLiteral("Configure — Better Blur DX"));
+            dialog->setWindowTitle(QStringLiteral("Configure — Better Blur RX"));
         }
     }
     return KCModule::eventFilter(watched, event);

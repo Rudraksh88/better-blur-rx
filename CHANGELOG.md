@@ -1,5 +1,6 @@
-# DEV
-Things not in any tagged release yet:
+# DEV (Better Blur RX)
+Better Blur RX's changes since it forked Better Blur DX 2.5.1 (DX `main` of
+2026-07-11); not in any tagged release yet:
 
 ### Features
 - **Backdrop probes** (D-Bus `setSurfaceProbe`, capability
