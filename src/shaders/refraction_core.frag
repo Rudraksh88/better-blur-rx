@@ -103,14 +103,20 @@ void main(void)
         float edgeProximity = clamp(1.0 + distConcave / refractionEdgeSizePixels, 0.0, 1.0);
         float shaped = sin(pow(edgeProximity, refractionNormalPow) * 1.57079632679);
 
-        vec2 fromCenter = uv - vec2(0.5);
-        float scaleR = 1.0 - shaped * baseStrength * (1.0 + fringing);
-        float scaleG = 1.0 - shaped * baseStrength;
-        float scaleB = 1.0 - shaped * baseStrength * (1.0 - fringing);
+        // The lens pulls each pixel towards the center by a share of its
+        // distance from it. That lever is capped, per axis, at the depth of
+        // the edge band: the band is capped at half the shorter side, so on a
+        // short, wide surface (a one-item menu) the uncapped lever -- half the
+        // width -- moved pixels further than the band is deep, and the image
+        // folded back on itself near the ends. A surface whose half sides are
+        // within the band (a square one) is unchanged.
+        vec2 lever = clamp(position, vec2(-refractionEdgeSizePixels), vec2(refractionEdgeSizePixels))
+            / refractionRectSize;
+        float pull = shaped * baseStrength;
 
-        vec2 coordR = applyTextureRepeatMode(vec2(0.5) + fromCenter * scaleR);
-        vec2 coordG = applyTextureRepeatMode(vec2(0.5) + fromCenter * scaleG);
-        vec2 coordB = applyTextureRepeatMode(vec2(0.5) + fromCenter * scaleB);
+        vec2 coordR = applyTextureRepeatMode(uv - lever * pull * (1.0 + fringing));
+        vec2 coordG = applyTextureRepeatMode(uv - lever * pull);
+        vec2 coordB = applyTextureRepeatMode(uv - lever * pull * (1.0 - fringing));
 
         for (int i = 0; i < 8; ++i) {
             vec2 off = offsets[i] * offset;
