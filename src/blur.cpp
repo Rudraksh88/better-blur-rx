@@ -1996,11 +1996,22 @@ void BlurEffect::blur(const RenderTarget &renderTarget, const RenderViewport &vi
         const QVector2D halfpixel(0.5 / read->colorAttachment()->width(),
                                   0.5 / read->colorAttachment()->height());
 
+        // A menu's lens follows the menu's own corner -- MenuRadius and, with
+        // MenuSquircle, the superellipse its mask has -- instead of the radius
+        // configured for every other surface, so that the edge of the lens
+        // runs along the edge of the mask rather than across its corners. The
+        // radius is logical, like backgroundRect, which the lens measures in.
+        const float refractionRadius = menuMask
+            ? static_cast<float>(m_windowManager->menuRadius()) : -1.0f;
+        const float refractionExponent = menuMask && m_windowManager->menuSquircle()
+            ? static_cast<float>(m_windowManager->squircleExponentFor(w)) : 2.0f;
         if (!m_refractionPass->setParameters(projectionMatrix,
                                              colorMatrix,
                                              halfpixel,
                                              float(m_offset),
-                                             backgroundRect)) {
+                                             backgroundRect,
+                                             refractionRadius,
+                                             refractionExponent)) {
         m_onscreenPass.shader->setUniform(m_onscreenPass.mvpMatrixLocation, projectionMatrix);
         m_onscreenPass.shader->setUniform(m_onscreenPass.colorMatrixLocation, colorMatrix);
         m_onscreenPass.shader->setUniform(m_onscreenPass.halfpixelLocation, halfpixel);

@@ -23,6 +23,7 @@ private:
     int m_refractionRectSizeLocation;
     int m_refractionEdgeSizePixelsLocation;
     int m_refractionCornerRadiusPixelsLocation;
+    int m_refractionSquircleExponentLocation;
     int m_refractionStrengthLocation;
     int m_refractionNormalPowLocation;
     int m_refractionRGBFringingLocation;
@@ -68,13 +69,20 @@ public:
     /**
      * Set GLSL parameters
      *
+     * cornerRadius: the corner of this surface, in the units of the rect;
+     *   negative for the configured RefractionCornerRadius
+     * squircleExponent: the superellipse of that corner; 2 (or less) for a
+     *   circle
+     *
      * returns false if refraction is disabled
      */
     bool setParameters(const QMatrix4x4 &projectionMatrix,
                        const QMatrix4x4 &colorMatrix,
                        const QVector2D &halfpixel,
                        const float offset,
-                       const QRect &scaledBackgroundRect) const;
+                       const QRect &scaledBackgroundRect,
+                       const float cornerRadius = -1.0f,
+                       const float squircleExponent = 2.0f) const;
 };
 
 } // namespace BBDX

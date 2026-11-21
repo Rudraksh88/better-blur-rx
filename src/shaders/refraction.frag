@@ -6,6 +6,7 @@ uniform vec2 halfpixel;
 uniform vec2 refractionRectSize;
 uniform float refractionEdgeSizePixels;
 uniform float refractionCornerRadiusPixels;
+uniform float refractionSquircleExponent; // 2 (or less): circular corners
 uniform float refractionStrength;
 uniform float refractionNormalPow;
 uniform float refractionRGBFringing;
@@ -67,6 +68,16 @@ float roundedRectangleDist(vec2 p, vec2 b, float r)
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
+// The same rectangle with superellipse corners of exponent n, measured as the
+// squircle mask measures it (rounded_corners.frag), so that the two agree on
+// where the edge is.
+float squircleRectangleDist(vec2 p, vec2 b, float r, float n)
+{
+    vec2 q = abs(p) - b + r;
+    vec2 outside = max(q, 0.0);
+    return min(max(q.x, q.y), 0.0) + pow(pow(outside.x, n) + pow(outside.y, n), 1.0 / n) - r;
+}
+
 void main(void)
 {
     vec2 offsets[8] = vec2[](
@@ -86,7 +97,9 @@ void main(void)
     vec2 halfRefractionRectSize = 0.5 * refractionRectSize;
     vec2 position = uv * refractionRectSize - halfRefractionRectSize.xy;
     float cornerR = min(refractionCornerRadiusPixels, min(halfRefractionRectSize.x, halfRefractionRectSize.y));
-    float distConcave = roundedRectangleDist(position, halfRefractionRectSize, cornerR);
+    float distConcave = refractionSquircleExponent > 2.0001
+        ? squircleRectangleDist(position, halfRefractionRectSize, cornerR, refractionSquircleExponent)
+        : roundedRectangleDist(position, halfRefractionRectSize, cornerR);
     float distBulge = roundedRectangleDist(position, halfRefractionRectSize, refractionEdgeSizePixels);
 
     // Different refraction behavior depending on mode

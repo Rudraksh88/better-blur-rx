@@ -40,6 +40,7 @@ std::unique_ptr<BBDX::RefractionPass> BBDX::RefractionPass::create() {
         pass->m_refractionRectSizeLocation = pass->m_shader->uniformLocation("refractionRectSize");
         pass->m_refractionEdgeSizePixelsLocation = pass->m_shader->uniformLocation("refractionEdgeSizePixels");
         pass->m_refractionCornerRadiusPixelsLocation = pass->m_shader->uniformLocation("refractionCornerRadiusPixels");
+        pass->m_refractionSquircleExponentLocation = pass->m_shader->uniformLocation("refractionSquircleExponent");
         pass->m_refractionStrengthLocation = pass->m_shader->uniformLocation("refractionStrength");
         pass->m_refractionNormalPowLocation = pass->m_shader->uniformLocation("refractionNormalPow");
         pass->m_refractionRGBFringingLocation = pass->m_shader->uniformLocation("refractionRGBFringing");
@@ -106,7 +107,9 @@ bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
                                          const QMatrix4x4 &colorMatrix,
                                          const QVector2D &halfpixel,
                                          const float offset,
-                                         const QRect &scaledBackgroundRect) const {
+                                         const QRect &scaledBackgroundRect,
+                                         const float cornerRadius,
+                                         const float squircleExponent) const {
     if (!enabled())
         return false;
 
@@ -122,7 +125,11 @@ bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
                                      std::min(static_cast<float>(m_edgeSizePixels),
                                               static_cast<float>(std::min(scaledBackgroundRect.width() / 2,
                                                                           scaledBackgroundRect.height() / 2))));
-    m_shader->setUniform(m_refractionCornerRadiusPixelsLocation, static_cast<float>(m_cornerRadiusPixels));
+    // A surface with a corner of its own (a menu) gets it exactly, neither
+    // snapped to the configured steps nor replaced by the global radius.
+    m_shader->setUniform(m_refractionCornerRadiusPixelsLocation,
+                         cornerRadius >= 0.0f ? cornerRadius : static_cast<float>(m_cornerRadiusPixels));
+    m_shader->setUniform(m_refractionSquircleExponentLocation, squircleExponent);
     m_shader->setUniform(m_refractionStrengthLocation, static_cast<float>(m_strength));
     m_shader->setUniform(m_refractionNormalPowLocation, static_cast<float>(m_normalPow));
     m_shader->setUniform(m_refractionRGBFringingLocation, static_cast<float>(m_RGBFringing));
